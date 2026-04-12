@@ -1,4 +1,76 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: light --default, dark, cupcake, bumblebee, emerald, corporate, synthwave, retro, cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade, night, coffee, winter, dim, nord, sunset;
+  themes:
+    light --default, dark, cupcake, bumblebee, emerald, corporate,
+    synthwave, retro, cyberpunk, valentine, halloween, garden,
+    forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury,
+    dracula, cmyk, autumn, business, acid, lemonade, night, coffee,
+    winter, dim, nord, sunset;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e8002d55; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #e8002d99; }
+
+html { scroll-behavior: smooth; }
+
+@keyframes glow-pulse { 0%,100%{opacity:.35} 50%{opacity:.75} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes counter-spin { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+
+.animate-glow { animation: glow-pulse 3s ease-in-out infinite; }
+.animate-float { animation: float 5s ease-in-out infinite; }
+.animate-fadeInUp { animation: fadeInUp 0.6s ease forwards; }
+.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+.animate-counter-spin { animation: counter-spin 15s linear infinite; }
+
+.red-glow { box-shadow: 0 0 40px rgba(232,0,45,0.35), 0 0 80px rgba(232,0,45,0.12); }
+.red-glow-sm { box-shadow: 0 0 20px rgba(232,0,45,0.28); }
+.text-glow { text-shadow: 0 0 25px rgba(232,0,45,0.65), 0 0 50px rgba(232,0,45,0.3); }
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(232,0,45,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,0,45,0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.glass-card {
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(232,0,45,0.18);
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  background: rgba(232,0,45,0.05);
+  border-color: rgba(232,0,45,0.4);
+  box-shadow: 0 0 35px rgba(232,0,45,0.18);
+  transform: translateY(-3px);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #e8002d 0%, #ff4d6d 50%, #ff9a3c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #e8002d, #ff4d6d44, #e8002d);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
