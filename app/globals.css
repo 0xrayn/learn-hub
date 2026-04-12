@@ -10,8 +10,8 @@
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e8002d55; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #e8002d99; }
+::-webkit-scrollbar-thumb { background: oklch(var(--p)/0.35); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(var(--p)/0.6); }
 
 html { scroll-behavior: smooth; }
 
@@ -28,32 +28,33 @@ html { scroll-behavior: smooth; }
 .animate-spin-slow { animation: spin-slow 20s linear infinite; }
 .animate-counter-spin { animation: counter-spin 15s linear infinite; }
 
-.red-glow { box-shadow: 0 0 40px rgba(232,0,45,0.35), 0 0 80px rgba(232,0,45,0.12); }
-.red-glow-sm { box-shadow: 0 0 20px rgba(232,0,45,0.28); }
-.text-glow { text-shadow: 0 0 25px rgba(232,0,45,0.65), 0 0 50px rgba(232,0,45,0.3); }
+/* Use DaisyUI primary color variable so themes work */
+.red-glow { box-shadow: 0 0 40px oklch(var(--p)/0.35), 0 0 80px oklch(var(--p)/0.12); }
+.red-glow-sm { box-shadow: 0 0 20px oklch(var(--p)/0.28); }
+.text-glow { text-shadow: 0 0 25px oklch(var(--p)/0.65), 0 0 50px oklch(var(--p)/0.3); }
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(232,0,45,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,0,45,0.05) 1px, transparent 1px);
+    linear-gradient(oklch(var(--p)/0.05) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(var(--p)/0.05) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 .glass-card {
   background: rgba(255,255,255,0.025);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(232,0,45,0.18);
+  border: 1px solid oklch(var(--p)/0.18);
   transition: all 0.3s ease;
 }
 .glass-card:hover {
-  background: rgba(232,0,45,0.05);
-  border-color: rgba(232,0,45,0.4);
-  box-shadow: 0 0 35px rgba(232,0,45,0.18);
+  background: oklch(var(--p)/0.05);
+  border-color: oklch(var(--p)/0.4);
+  box-shadow: 0 0 35px oklch(var(--p)/0.18);
   transform: translateY(-3px);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #e8002d 0%, #ff4d6d 50%, #ff9a3c 100%);
+  background: linear-gradient(135deg, oklch(var(--p)) 0%, oklch(var(--pf)) 50%, oklch(var(--s)) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -68,7 +69,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, #e8002d, #ff4d6d44, #e8002d);
+  background: linear-gradient(135deg, oklch(var(--p)), oklch(var(--p)/0.27), oklch(var(--p)));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;

@@ -1,6 +1,9 @@
 "use client";
-import { useState } from "react";
-import { Cpu, Link2, BarChart2, Globe, ChevronRight, ExternalLink } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Cpu, Link2, BarChart2, Globe, ChevronRight } from "lucide-react";
+
+// Static hashes to avoid hydration mismatch (no Math.random() at render time)
+const BLOCK_HASHES = ["0000...0000", "a04ec...f2b1", "b7d3a...91c2", "c1e88...3d47"];
 
 const TOPICS = [
   {
@@ -49,6 +52,13 @@ const TOPICS = [
   },
 ];
 
+const BLOCKS = [
+  { label: "Genesis Block", emoji: "⛓️" },
+  { label: "Block #891,240", emoji: "📦" },
+  { label: "Block #891,241", emoji: "📦" },
+  { label: "Block #891,242", emoji: "📦" },
+];
+
 export default function AboutBitcoin() {
   const [activeIdx, setActiveIdx] = useState(0);
   const active = TOPICS[activeIdx];
@@ -56,22 +66,28 @@ export default function AboutBitcoin() {
   return (
     <section id="tentang" className="relative py-28 px-5 sm:px-8 overflow-hidden">
       {/* BG glow */}
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(232,0,45,0.05) 0%, transparent 70%)" }} />
+      <div
+        className="absolute left-0 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, oklch(var(--p)/0.05) 0%, transparent 70%)" }}
+      />
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ background: "rgba(232,0,45,0.1)", border: "1px solid rgba(232,0,45,0.25)", color: "#ff4d6d" }}>
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 text-primary"
+            style={{ background: "oklch(var(--p)/0.1)", border: "1px solid oklch(var(--p)/0.25)" }}
+          >
             📚 Edukasi
           </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif" }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4">
+          <h2
+            style={{ fontFamily: "'Syne', sans-serif" }}
+            className="text-3xl sm:text-4xl lg:text-5xl font-black text-base-content mb-4"
+          >
             Semua yang Perlu Kamu
             <span className="gradient-text"> Tahu</span>
           </h2>
-          <p className="text-white/50 max-w-xl mx-auto">
+          <p className="text-base-content/50 max-w-xl mx-auto">
             Pelajari Bitcoin dari dasar dengan penjelasan yang mudah dipahami, tanpa jargon berlebihan
           </p>
         </div>
@@ -80,58 +96,67 @@ export default function AboutBitcoin() {
           {/* Tab list */}
           <div className="lg:col-span-2 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
             {TOPICS.map((t, i) => (
-              <button key={i} onClick={() => setActiveIdx(i)}
+              <button
+                key={i}
+                onClick={() => setActiveIdx(i)}
                 className={`flex-shrink-0 lg:flex-shrink text-left p-4 rounded-2xl transition-all duration-300 ${
-                  activeIdx === i ? "red-glow-sm scale-[1.02]" : "hover:bg-white/3"
+                  activeIdx === i ? "red-glow-sm scale-[1.02]" : "hover:bg-base-content/5"
                 }`}
-                style={activeIdx === i
-                  ? { background: "rgba(232,0,45,0.1)", border: "1px solid rgba(232,0,45,0.35)" }
-                  : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }
-                }>
+                style={
+                  activeIdx === i
+                    ? { background: "oklch(var(--p)/0.1)", border: "1px solid oklch(var(--p)/0.35)" }
+                    : { background: "oklch(var(--b2)/0.5)", border: "1px solid oklch(var(--b3)/0.5)" }
+                }
+              >
                 <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-xl transition-colors ${
-                    activeIdx === i ? "text-white" : "text-white/40"
-                  }`}
-                    style={{ background: activeIdx === i ? "rgba(232,0,45,0.3)" : "rgba(255,255,255,0.05)" }}>
+                  <div
+                    className={`p-2 rounded-xl transition-colors ${activeIdx === i ? "text-primary-content" : "text-base-content/40"}`}
+                    style={{ background: activeIdx === i ? "oklch(var(--p)/0.3)" : "oklch(var(--b3)/0.5)" }}
+                  >
                     {t.icon}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-bold tracking-widest mb-0.5"
-                      style={{ color: activeIdx === i ? "#e8002d" : "rgba(255,255,255,0.25)" }}>
+                    <div
+                      className="text-[10px] font-bold tracking-widest mb-0.5"
+                      style={{ color: activeIdx === i ? "oklch(var(--p))" : "oklch(var(--bc)/0.25)" }}
+                    >
                       {t.tag}
                     </div>
-                    <div className={`font-bold text-sm leading-tight ${activeIdx === i ? "text-white" : "text-white/60"}`}>
+                    <div className={`font-bold text-sm leading-tight ${activeIdx === i ? "text-base-content" : "text-base-content/60"}`}>
                       {t.title}
                     </div>
-                    <div className="hidden lg:block text-xs text-white/35 mt-1 leading-relaxed">{t.short}</div>
+                    <div className="hidden lg:block text-xs text-base-content/35 mt-1 leading-relaxed">{t.short}</div>
                   </div>
-                  {activeIdx === i && <ChevronRight size={14} className="ml-auto flex-shrink-0 mt-0.5" style={{ color: "#e8002d" }} />}
+                  {activeIdx === i && <ChevronRight size={14} className="ml-auto flex-shrink-0 mt-0.5 text-primary" />}
                 </div>
               </button>
             ))}
           </div>
 
           {/* Content panel */}
-          <div className="lg:col-span-3 rounded-3xl p-6 sm:p-8"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(232,0,45,0.2)" }}>
+          <div
+            className="lg:col-span-3 rounded-3xl p-6 sm:p-8"
+            style={{ background: "oklch(var(--b2)/0.5)", border: "1px solid oklch(var(--p)/0.2)" }}
+          >
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 rounded-xl text-white" style={{ background: "rgba(232,0,45,0.25)" }}>
+              <div className="p-2.5 rounded-xl text-primary-content" style={{ background: "oklch(var(--p)/0.25)" }}>
                 {active.icon}
               </div>
               <div>
-                <div className="text-[10px] font-bold tracking-widest" style={{ color: "#e8002d" }}>
-                  {active.tag}
-                </div>
-                <h3 style={{ fontFamily: "'Syne', sans-serif" }}
-                  className="text-xl font-black text-white">{active.title}</h3>
+                <div className="text-[10px] font-bold tracking-widest text-primary">{active.tag}</div>
+                <h3 style={{ fontFamily: "'Syne', sans-serif" }} className="text-xl font-black text-base-content">
+                  {active.title}
+                </h3>
               </div>
             </div>
 
             <div className="space-y-4">
               {active.content.map((para, i) => (
-                <p key={i} className="text-white/65 leading-relaxed text-sm sm:text-base relative pl-4">
-                  <span className="absolute left-0 top-2 w-1.5 h-1.5 rounded-full"
-                    style={{ background: i === 0 ? "#e8002d" : "rgba(232,0,45,0.4)" }} />
+                <p key={i} className="text-base-content/65 leading-relaxed text-sm sm:text-base relative pl-4">
+                  <span
+                    className="absolute left-0 top-2 w-1.5 h-1.5 rounded-full"
+                    style={{ background: i === 0 ? "oklch(var(--p))" : "oklch(var(--p)/0.4)" }}
+                  />
                   {para}
                 </p>
               ))}
@@ -142,47 +167,57 @@ export default function AboutBitcoin() {
         {/* Blockchain visual */}
         <div className="mt-20">
           <div className="text-center mb-10">
-            <h3 style={{ fontFamily: "'Syne', sans-serif" }} className="text-xl sm:text-2xl font-black text-white mb-2">
+            <h3 style={{ fontFamily: "'Syne', sans-serif" }} className="text-xl sm:text-2xl font-black text-base-content mb-2">
               Visualisasi Blockchain
             </h3>
-            <p className="text-white/40 text-sm">Setiap blok terhubung lewat hash kriptografi</p>
+            <p className="text-base-content/40 text-sm">Setiap blok terhubung lewat hash kriptografi</p>
           </div>
 
-          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3">
-            {["Genesis Block", "Block #891,240", "Block #891,241", "Block #891,242", "..."].map((label, i) => (
-              <div key={i} className="flex items-center gap-2 sm:gap-3">
-                <div className={`rounded-2xl p-3 sm:p-4 text-center transition-all hover:scale-105 cursor-default ${
-                  i === 0 ? "red-glow-sm" : ""
-                }`}
-                  style={{
-                    background: i === 0 ? "rgba(232,0,45,0.15)" : "rgba(255,255,255,0.04)",
-                    border: i === 0 ? "1px solid rgba(232,0,45,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                    minWidth: i === 4 ? "auto" : "100px",
-                  }}>
-                  {i < 4 ? (
-                    <>
-                      <div className="text-xl mb-1">{i === 0 ? "⛓️" : "📦"}</div>
-                      <div className="text-xs font-bold text-white/80">{label}</div>
-                      <div className="text-[9px] font-mono mt-1.5 px-2 py-0.5 rounded-md"
-                        style={{ color: "#e8002d", background: "rgba(232,0,45,0.1)" }}>
-                        {i === 0 ? "0000...0000" : `a${Math.floor(Math.random() * 1e4).toString(16).padStart(4, "0")}...`}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-2xl font-bold text-white/30 px-2">···</div>
-                  )}
-                </div>
-                {i < 4 && (
-                  <div className="flex items-center gap-0.5">
-                    <div className="w-3 sm:w-5 h-px" style={{ background: "rgba(232,0,45,0.5)" }} />
-                    <div className="text-xs" style={{ color: "#e8002d" }}>→</div>
-                    <div className="w-3 sm:w-5 h-px" style={{ background: "rgba(232,0,45,0.5)" }} />
+          {/* Responsive: scroll horizontally on mobile */}
+          <div className="overflow-x-auto pb-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-max mx-auto w-fit px-4">
+              {BLOCKS.map(({ label, emoji }, i) => (
+                <div key={i} className="flex items-center gap-2 sm:gap-3">
+                  <div
+                    className={`rounded-2xl p-3 sm:p-4 text-center transition-all hover:scale-105 cursor-default w-[100px] sm:w-[110px] ${
+                      i === 0 ? "red-glow-sm" : ""
+                    }`}
+                    style={{
+                      background: i === 0 ? "oklch(var(--p)/0.15)" : "oklch(var(--b2)/0.5)",
+                      border: i === 0 ? "1px solid oklch(var(--p)/0.4)" : "1px solid oklch(var(--b3)/0.5)",
+                    }}
+                  >
+                    <div className="text-xl mb-1">{emoji}</div>
+                    <div className="text-xs font-bold text-base-content/80">{label}</div>
+                    {/* Static hash — no Math.random() to avoid hydration mismatch */}
+                    <div
+                      className="text-[9px] font-mono mt-1.5 px-2 py-0.5 rounded-md text-primary"
+                      style={{ background: "oklch(var(--p)/0.1)" }}
+                    >
+                      {BLOCK_HASHES[i]}
+                    </div>
                   </div>
-                )}
+                  {/* Arrow connector */}
+                  <div className="flex items-center gap-0.5">
+                    <div className="w-3 sm:w-5 h-px bg-primary/50" />
+                    <div className="text-xs text-primary">→</div>
+                    <div className="w-3 sm:w-5 h-px bg-primary/50" />
+                  </div>
+                </div>
+              ))}
+              {/* "..." last block */}
+              <div
+                className="rounded-2xl p-3 sm:p-4 text-center"
+                style={{
+                  background: "oklch(var(--b2)/0.5)",
+                  border: "1px solid oklch(var(--b3)/0.5)",
+                }}
+              >
+                <div className="text-2xl font-bold text-base-content/30 px-2">···</div>
               </div>
-            ))}
+            </div>
           </div>
-          <p className="text-center text-xs text-white/25 mt-4 font-mono">
+          <p className="text-center text-xs text-base-content/25 mt-4 font-mono">
             // Ubah 1 blok → seluruh rantai invalid → jaringan otomatis menolak
           </p>
         </div>
