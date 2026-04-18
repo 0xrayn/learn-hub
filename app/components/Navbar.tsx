@@ -9,17 +9,18 @@ const themes = [
 ];
 
 const navLinks = [
-  { href: "#harga",     label: "Harga BTC",   icon: "📊" },
-  { href: "#artikel",   label: "Artikel",     icon: "📝" },
-  { href: "#edukasi",   label: "Edukasi",     icon: "🎓" },
-  { href: "#konverter", label: "Konverter",   icon: "💱" },
-  { href: "#faq",       label: "FAQ",         icon: "❓" },
+  { href: "#harga",     label: "Harga BTC" },
+  { href: "#artikel",   label: "Artikel" },
+  { href: "#edukasi",   label: "Edukasi" },
+  { href: "#konverter", label: "Konverter" },
+  { href: "#faq",       label: "FAQ" },
 ];
 
 export default function Navbar() {
   const [theme, setTheme] = useState("dark");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("learnhub-theme") || "dark";
@@ -33,128 +34,197 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest("[data-dropdown]")) setDropOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const changeTheme = (t: string) => {
     setTheme(t);
     document.documentElement.setAttribute("data-theme", t);
     localStorage.setItem("learnhub-theme", t);
+    setDropOpen(false);
     setMenuOpen(false);
   };
 
+  const accentColor = {
+    dark: "#f59e0b", light: "#d97706", forest: "#22c55e", retro: "#fb923c",
+  }[theme] ?? "#f59e0b";
+
   return (
-    <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "glass border-b border-white/5 py-2"
-          : "bg-transparent py-4"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
+      style={{
+        background: scrolled ? "var(--bg-card, rgba(5,8,16,0.85))" : "transparent",
+        backdropFilter: scrolled ? "blur(20px)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
+        borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "1px solid transparent",
+        boxShadow: "none",
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
 
-          {/* Logo */}
-          <a href="#" className="flex items-center gap-3 group">
-            <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-black text-black text-sm group-hover:scale-110 transition-transform duration-300">
-                LH
-              </div>
-              <div className="absolute inset-0 rounded-xl bg-amber-400/30 blur-md scale-110 opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Logo */}
+        <a href="#" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: `linear-gradient(135deg, ${accentColor}, #f97316)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 900, fontSize: 13, color: "#000",
+          }}>LH</div>
+          <div>
+            <span style={{ fontWeight: 900, fontSize: 18, color: "var(--text-main, #e8eaf0)" }}>
+              Learn<span style={{ color: accentColor }}>Hub</span>
+            </span>
+            <div style={{ fontSize: 10, color: "rgba(200,200,200,0.35)", fontFamily: "monospace", lineHeight: 1.2 }}>
+              Bitcoin Academy
             </div>
-            <div>
-              <span className="font-black text-lg leading-none">
-                Learn<span className="text-amber-400">Hub</span>
-              </span>
-              <div className="text-[10px] text-white/30 font-mono-styled leading-none mt-0.5">Bitcoin Academy</div>
-            </div>
-          </a>
+          </div>
+        </a>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-white/60 hover:text-amber-400 hover:bg-amber-400/8 transition-all duration-200 flex items-center gap-1.5"
-              >
-                <span className="text-xs">{link.icon}</span>
-                {link.label}
-              </a>
-            ))}
+        {/* Desktop Nav */}
+        <div className="hidden lg:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <a key={link.href} href={link.href} style={{
+              padding: "8px 14px", borderRadius: 10, fontSize: 13, fontWeight: 500,
+              color: "var(--text-main, #e8eaf0)", opacity: 0.65,
+              textDecoration: "none", transition: "opacity .2s, background .2s",
+            }}
+            onMouseEnter={e => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.background = `${accentColor}12`; (e.target as HTMLElement).style.color = accentColor; }}
+            onMouseLeave={e => { (e.target as HTMLElement).style.opacity = "0.65"; (e.target as HTMLElement).style.background = "transparent"; (e.target as HTMLElement).style.color = "var(--text-main, #e8eaf0)"; }}>
+              {link.label}
+            </a>
+          ))}
+        </div>
+
+        {/* Right controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Live badge */}
+          <div className="hidden sm:flex items-center gap-2"
+            style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 11, color: "#22c55e", fontFamily: "monospace" }}>
+            <span style={{ position: "relative", display: "inline-flex" }}>
+              <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#22c55e", opacity: 0.7, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", position: "relative" }} />
+            </span>
+            LIVE
           </div>
 
-          {/* Right controls */}
-          <div className="flex items-center gap-2">
-            {/* Live indicator */}
-            <div className="hidden sm:flex items-center gap-2 glass px-3 py-1.5 rounded-full text-xs text-emerald-400 font-mono-styled">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"/>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"/>
-              </span>
-              LIVE
-            </div>
-
-            {/* Theme dropdown */}
-            <div className="dropdown dropdown-end">
-              <div tabIndex={0} role="button"
-                className="glass px-3 py-2 rounded-xl text-sm text-white/70 hover:text-amber-400 hover:border-amber-400/30 transition-all cursor-pointer flex items-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <circle cx="12" cy="12" r="3" strokeWidth="2"/>
-                  <path strokeLinecap="round" strokeWidth="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                </svg>
-                <span className="hidden sm:inline text-xs">Tema</span>
-              </div>
-              <ul tabIndex={0} className="dropdown-content z-[100] p-2 mt-2 w-48 glass rounded-xl border border-white/10 space-y-1 shadow-2xl">
-                {themes.map((t) => (
-                  <li key={t.name}>
-                    <button
-                      onClick={() => changeTheme(t.name)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                        theme === t.name
-                          ? "bg-amber-400/15 text-amber-400"
-                          : "text-white/60 hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      <span>{t.icon}</span>
-                      <div className="text-left">
-                        <div className="font-semibold">{t.label}</div>
-                        <div className="text-xs opacity-60">{t.desc}</div>
-                      </div>
-                      {theme === t.name && <span className="ml-auto text-amber-400">✓</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Mobile hamburger */}
+          {/* Theme switcher */}
+          <div style={{ position: "relative" }} data-dropdown>
             <button
-              className="lg:hidden glass p-2 rounded-xl"
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => setDropOpen(!dropOpen)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                borderRadius: 10, background: "transparent",
+                border: `1px solid ${accentColor}30`,
+                color: accentColor, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                transition: "background .2s, border-color .2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}10`)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
-              <div className="w-5 h-4 flex flex-col justify-between">
-                <span className={`block h-0.5 bg-white/80 transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-1.5" : ""}`}/>
-                <span className={`block h-0.5 bg-white/80 transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`}/>
-                <span className={`block h-0.5 bg-white/80 transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-1.5" : ""}`}/>
-              </div>
+              <span>{themes.find(t => t.name === theme)?.icon}</span>
+              <span className="hidden sm:inline">Tema</span>
+              <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
             </button>
-          </div>
-        </div>
 
-        {/* Mobile menu */}
-        <div className={`lg:hidden overflow-hidden transition-all duration-400 ${menuOpen ? "max-h-80" : "max-h-0"}`}>
-          <div className="glass border-t border-white/5 px-4 py-4 space-y-1">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/70 hover:text-amber-400 hover:bg-amber-400/8 transition-all"
-              >
-                <span>{link.icon}</span>
-                {link.label}
-              </a>
-            ))}
+            {dropOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0, width: 200,
+                background: "var(--bg-card, rgba(12,17,32,0.97))", backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14,
+                padding: 6, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+              }}>
+                {themes.map(t => (
+                  <button key={t.name} onClick={() => changeTheme(t.name)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%",
+                      padding: "8px 10px", borderRadius: 10, cursor: "pointer",
+                      background: theme === t.name ? `${accentColor}15` : "transparent",
+                      border: "none", color: theme === t.name ? accentColor : "var(--text-main, #e8eaf0)",
+                      opacity: theme === t.name ? 1 : 0.6, fontSize: 13, fontWeight: 600,
+                      transition: "all .15s",
+                    }}
+                    onMouseEnter={e => { if (theme !== t.name) { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.opacity = "1"; } }}
+                    onMouseLeave={e => { if (theme !== t.name) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.opacity = "0.6"; } }}
+                  >
+                    <span style={{ fontSize: 16 }}>{t.icon}</span>
+                    <div style={{ textAlign: "left" }}>
+                      <div>{t.label}</div>
+                      <div style={{ fontSize: 10, opacity: 0.5, fontWeight: 400 }}>{t.desc}</div>
+                    </div>
+                    {theme === t.name && <span style={{ marginLeft: "auto", fontSize: 12 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="lg:hidden"
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{
+              display: "flex", flexDirection: "column", justifyContent: "space-between",
+              width: 32, height: 32, padding: "7px 6px", borderRadius: 8,
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
+            }}
+          >
+            {[0,1,2].map(i => (
+              <span key={i} style={{
+                display: "block", height: 2, background: "var(--text-main, #e8eaf0)", borderRadius: 2,
+                transition: "all .3s",
+                transform: menuOpen
+                  ? i === 0 ? "rotate(45deg) translate(4px, 4px)" : i === 2 ? "rotate(-45deg) translate(4px, -4px)" : "none"
+                  : "none",
+                opacity: menuOpen && i === 1 ? 0 : 1,
+              }} />
+            ))}
+          </button>
         </div>
-      </nav>
-    </>
+      </div>
+
+      {/* Mobile menu */}
+      <div style={{
+        maxHeight: menuOpen ? 320 : 0, overflow: "hidden",
+        transition: "max-height .35s cubic-bezier(.16,1,.3,1)",
+        background: "var(--bg-card, rgba(5,8,16,0.97))",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        borderBottom: menuOpen ? "1px solid rgba(255,255,255,0.06)" : "none",
+      }}>
+        <div style={{ padding: "8px 16px 16px" }}>
+          {navLinks.map(link => (
+            <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
+              style={{
+                display: "block", padding: "12px 14px", borderRadius: 10,
+                color: "var(--text-main, #e8eaf0)", opacity: 0.7, fontSize: 14, fontWeight: 500,
+                textDecoration: "none", transition: "all .2s",
+              }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.background = `${accentColor}10`; (e.target as HTMLElement).style.color = accentColor; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.opacity = "0.7"; (e.target as HTMLElement).style.background = "transparent"; (e.target as HTMLElement).style.color = "var(--text-main, #e8eaf0)"; }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </nav>
   );
+}
+
+// ping keyframe — injected once
+if (typeof document !== "undefined") {
+  const styleId = "ping-keyframe";
+  if (!document.getElementById(styleId)) {
+    const s = document.createElement("style");
+    s.id = styleId;
+    s.textContent = "@keyframes ping { 75%,100%{transform:scale(2);opacity:0} }";
+    document.head.appendChild(s);
+  }
 }

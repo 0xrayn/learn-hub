@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
 
 const ARTICLES = [
   {
@@ -9,7 +8,7 @@ const ARTICLES = [
     excerpt: "Bitcoin adalah mata uang digital pertama yang beroperasi tanpa bank sentral. Pelajari dasar-dasarnya di sini.",
     author: "Rizal Hakim", date: "18 Apr 2025",
     image: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=600&q=80",
-    catColor: "bg-emerald-400/15 text-emerald-400 border-emerald-400/20",
+    catColor: "#22c55e",
   },
   {
     id: 2, category: "Teknologi", readTime: "8 mnt",
@@ -17,15 +16,15 @@ const ARTICLES = [
     excerpt: "Blockchain adalah buku besar digital terdesentralisasi. Inilah cara kerja teknologi revolusioner ini.",
     author: "Sari Dewi", date: "16 Apr 2025",
     image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=600&q=80",
-    catColor: "bg-cyan-400/15 text-cyan-400 border-cyan-400/20",
+    catColor: "#06b6d4",
   },
   {
     id: 3, category: "Investasi", readTime: "6 mnt",
     title: "Dollar Cost Averaging (DCA) Bitcoin: Strategi Terbaik?",
-    excerpt: "DCA adalah strategi investasi populer di kalangan HODLer Bitcoin. Cara menerapkannya dengan benar.",
+    excerpt: "DCA adalah strategi populer di kalangan HODLer Bitcoin. Cara menerapkannya dengan benar.",
     author: "Dimas Pratama", date: "14 Apr 2025",
     image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=80",
-    catColor: "bg-amber-400/15 text-amber-400 border-amber-400/20",
+    catColor: "#f59e0b",
   },
   {
     id: 4, category: "Keamanan", readTime: "7 mnt",
@@ -33,7 +32,7 @@ const ARTICLES = [
     excerpt: "Tidak semua wallet Bitcoin sama amannya. Pelajari cara terbaik melindungi aset kripto Anda.",
     author: "Andi Wijaya", date: "12 Apr 2025",
     image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&q=80",
-    catColor: "bg-violet-400/15 text-violet-400 border-violet-400/20",
+    catColor: "#a78bfa",
   },
   {
     id: 5, category: "Sejarah", readTime: "10 mnt",
@@ -41,7 +40,7 @@ const ARTICLES = [
     excerpt: "Perjalanan Bitcoin dari anonimitas Satoshi Nakamoto hingga menjadi aset senilai triliunan dolar.",
     author: "Maya Santoso", date: "10 Apr 2025",
     image: "https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=600&q=80",
-    catColor: "bg-orange-400/15 text-orange-400 border-orange-400/20",
+    catColor: "#fb923c",
   },
   {
     id: 6, category: "Mining", readTime: "9 mnt",
@@ -49,7 +48,7 @@ const ARTICLES = [
     excerpt: "Mining Bitcoin adalah proses validasi transaksi. Ketahui cara kerjanya dan apakah masih worth it di 2025.",
     author: "Fajar Nugroho", date: "8 Apr 2025",
     image: "https://images.unsplash.com/photo-1516245834210-c4c142787335?w=600&q=80",
-    catColor: "bg-red-400/15 text-red-400 border-red-400/20",
+    catColor: "#ef4444",
   },
 ];
 
@@ -65,26 +64,35 @@ export default function ArtikelSection() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-400 glass px-3 py-1 rounded-full border border-cyan-400/20 mb-4">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold glass px-3 py-1 rounded-full border mb-4"
+            style={{ color: "var(--color-secondary,#06b6d4)", borderColor: "color-mix(in srgb, var(--color-secondary,#06b6d4) 25%, transparent)" }}>
             📝 Artikel Terbaru
           </div>
-          <h2 className="font-black text-3xl sm:text-4xl text-white mb-3">
-            Baca & <span className="text-cyan-400">Pelajari</span>
+          <h2 className="font-black text-3xl sm:text-4xl mb-3" style={{ color: "var(--text-main,#e8eaf0)" }}>
+            Baca &amp; <span style={{ color: "var(--color-secondary,#06b6d4)" }}>Pelajari</span>
           </h2>
-          <p className="text-white/40 max-w-md mx-auto">
+          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.45, maxWidth: 420, margin: "0 auto" }}>
             Artikel mendalam ditulis oleh pakar kripto Indonesia.
           </p>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex flex-wrap gap-2 justify-center mb-10">
+        {/* Filter */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 40 }}>
           {CATS.map(c => (
             <button key={c} onClick={() => setCat(c)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                cat === c
-                  ? "bg-cyan-400/20 text-cyan-400 border border-cyan-400/40"
-                  : "glass text-white/50 border border-transparent hover:border-white/10 hover:text-white/80"
-              }`}>
+              style={{
+                padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: cat === c ? "color-mix(in srgb, var(--color-secondary,#06b6d4) 15%, transparent)" : "transparent",
+                color: cat === c ? "var(--color-secondary,#06b6d4)" : "var(--text-main,#e8eaf0)",
+                border: cat === c
+                  ? "1px solid color-mix(in srgb, var(--color-secondary,#06b6d4) 35%, transparent)"
+                  : "1px solid rgba(255,255,255,0.08)",
+                opacity: cat === c ? 1 : 0.6,
+                transition: "all .2s",
+              }}
+              onMouseEnter={e => { if (cat !== c) { e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; } }}
+              onMouseLeave={e => { if (cat !== c) { e.currentTarget.style.opacity = "0.6"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; } }}
+            >
               {c}
             </button>
           ))}
@@ -92,56 +100,100 @@ export default function ArtikelSection() {
 
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((a, i) => (
-            <article key={a.id}
-              className="article-card grad-border overflow-hidden cursor-pointer group"
-              style={{ animationDelay: `${i * 0.05}s` }}>
-
+          {filtered.map((a) => (
+            <article key={a.id} className="grad-border overflow-hidden"
+              style={{
+                cursor: "pointer", transition: "transform .3s ease, box-shadow .3s ease",
+                display: "flex", flexDirection: "column",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-6px)";
+                e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.3), 0 0 0 1px ${a.catColor}30`;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
               {/* Image */}
-              <div className="relative h-44 overflow-hidden">
+              <div style={{ position: "relative", height: 180, overflow: "hidden" }}>
                 <img
                   src={a.image}
                   alt={a.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .6s ease" }}
                   loading="lazy"
+                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.08)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
                 />
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0c1120] via-[#0c1120]/30 to-transparent"/>
-                {/* Category badge on image */}
-                <div className={`absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-lg border backdrop-blur-sm ${a.catColor}`}>
-                  {a.category}
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, var(--bg-card,#0c1120) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)" }} />
+                {/* Badges */}
+                <div style={{ position: "absolute", top: 12, left: 12 }}>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 8,
+                    background: `color-mix(in srgb, ${a.catColor} 15%, rgba(0,0,0,0.5))`,
+                    border: `1px solid ${a.catColor}40`,
+                    color: a.catColor,
+                    backdropFilter: "blur(8px)",
+                  }}>{a.category}</span>
                 </div>
-                <div className="absolute top-3 right-3 text-xs text-white/60 glass px-2 py-1 rounded-lg">
-                  {a.readTime} baca
+                <div style={{ position: "absolute", top: 12, right: 12 }}>
+                  <span style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8, color: "rgba(255,255,255,0.7)",
+                    background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}>{a.readTime} baca</span>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="p-5">
-                <h3 className="font-bold text-white text-base leading-snug mb-2 group-hover:text-cyan-400 transition-colors line-clamp-2">
+              <div style={{ padding: "18px 20px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                <h3 style={{
+                  fontWeight: 700, fontSize: 15, lineHeight: 1.45,
+                  color: "var(--text-main,#e8eaf0)", marginBottom: 8,
+                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                }}>
                   {a.title}
                 </h3>
-                <p className="text-sm text-white/40 leading-relaxed line-clamp-2 mb-4">
+                <p style={{
+                  fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.45, lineHeight: 1.6,
+                  marginBottom: "auto",
+                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                }}>
                   {a.excerpt}
                 </p>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400/40 to-cyan-400/40 flex items-center justify-center text-xs font-bold text-white">
-                      {a.author[0]}
-                    </div>
-                    <span className="text-xs text-white/40">{a.author}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                      background: `linear-gradient(135deg, ${a.catColor}40, rgba(6,182,212,0.3))`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 700, color: "white",
+                    }}>{a.author[0]}</div>
+                    <span style={{ fontSize: 12, color: "var(--text-main,#e8eaf0)", opacity: 0.45 }}>{a.author}</span>
                   </div>
-                  <span className="text-xs text-white/30 font-mono-styled">{a.date}</span>
+                  <span className="font-mono-styled" style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.3 }}>{a.date}</span>
                 </div>
               </div>
             </article>
           ))}
         </div>
 
-        <div className="text-center mt-10">
-          <button className="glass px-6 py-3 rounded-xl text-sm font-bold text-cyan-400 border border-cyan-400/30 hover:border-cyan-400/60 hover:bg-cyan-400/5 transition-all">
+        {/* Lihat semua - working button */}
+        <div style={{ textAlign: "center", marginTop: 40 }}>
+          <button
+            onClick={() => setCat("Semua")}
+            style={{
+              padding: "12px 28px", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
+              background: "color-mix(in srgb, var(--color-secondary,#06b6d4) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--color-secondary,#06b6d4) 30%, transparent)",
+              color: "var(--color-secondary,#06b6d4)",
+              transition: "all .2s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--color-secondary,#06b6d4) 18%, transparent)"; e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--color-secondary,#06b6d4) 10%, transparent)"; e.currentTarget.style.transform = "scale(1)"; }}
+          >
             Lihat Semua Artikel →
           </button>
         </div>
