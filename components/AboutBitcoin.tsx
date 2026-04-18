@@ -1,225 +1,202 @@
 "use client";
-import { useState, useMemo } from "react";
-import { Cpu, Link2, BarChart2, Globe, ChevronRight } from "lucide-react";
-
-// Static hashes to avoid hydration mismatch (no Math.random() at render time)
-const BLOCK_HASHES = ["0000...0000", "a04ec...f2b1", "b7d3a...91c2", "c1e88...3d47"];
+import { useState } from "react";
+import { Cpu, Link2, BarChart2, Globe, ArrowRight } from "lucide-react";
 
 const TOPICS = [
   {
-    icon: <Globe size={20} />,
+    icon: Globe,
     tag: "01",
     title: "Apa itu Bitcoin?",
-    short: "Mata uang digital terdesentralisasi pertama di dunia",
+    short: "Mata uang digital terdesentralisasi pertama",
     content: [
-      "Bitcoin adalah mata uang digital terdesentralisasi yang lahir pada 2009 dari whitepaper Satoshi Nakamoto. Tidak ada bank, pemerintah, atau entitas tunggal yang mengontrolnya — Bitcoin berjalan di atas jaringan peer-to-peer global.",
-      "Supply Bitcoin dibatasi keras hanya 21 juta koin. Kelangkaan ini — mirip emas — adalah inti dari proposisi nilai Bitcoin. Per 2024, sekitar 19.7 juta sudah ditambang, tersisa hanya ~1.3 juta lagi.",
-      "Bitcoin bisa dibagi hingga 8 desimal (0.00000001 BTC = 1 Satoshi). Artinya kamu bisa mulai dengan nominal sangat kecil, bahkan Rp 50.000 sekalipun.",
+      "Bitcoin adalah mata uang digital terdesentralisasi yang lahir pada 2009 dari whitepaper Satoshi Nakamoto. Tidak ada bank, pemerintah, atau entitas tunggal yang mengontrolnya.",
+      "Supply Bitcoin dibatasi keras hanya 21 juta koin. Kelangkaan ini mirip emas. Per 2024, sekitar 19.7 juta sudah ditambang, tersisa hanya ~1.3 juta lagi.",
+      "Bitcoin bisa dibagi hingga 8 desimal (0.00000001 BTC = 1 Satoshi). Kamu bisa mulai dengan nominal sangat kecil, bahkan Rp 50.000 sekalipun.",
     ],
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/30",
   },
   {
-    icon: <Link2 size={20} />,
+    icon: Link2,
     tag: "02",
     title: "Cara Kerja Blockchain",
-    short: "Buku besar digital yang transparan & tak bisa dimanipulasi",
+    short: "Buku besar digital yang transparan & aman",
     content: [
-      "Blockchain adalah struktur data dimana setiap 'blok' berisi sekumpulan transaksi yang di-hash bersama. Hash setiap blok menyertakan hash blok sebelumnya — menciptakan rantai yang tidak bisa diputus tanpa merusak seluruh rantai.",
-      "Ketika kamu kirim Bitcoin, transaksimu disiarkan ke ribuan node di seluruh dunia. Miner bersaing memecahkan puzzle kriptografi (Proof of Work) untuk memvalidasi transaksi dan menambahkan blok baru — proses ini terjadi setiap ~10 menit.",
-      "Setelah masuk blockchain, transaksi permanen dan tidak bisa diubah. Untuk 'hack' satu blok, penyerang harus mengubah semua blok setelahnya dan mengontrol >50% dari seluruh daya komputasi jaringan — secara ekonomi mustahil.",
+      "Blockchain adalah struktur data dimana setiap blok berisi transaksi yang di-hash bersama. Hash setiap blok menyertakan hash blok sebelumnya — menciptakan rantai yang tidak bisa diputus.",
+      "Ketika kamu kirim Bitcoin, transaksimu disiarkan ke ribuan node. Miner bersaing memecahkan puzzle kriptografi untuk memvalidasi transaksi — proses ini terjadi setiap ~10 menit.",
+      "Setelah masuk blockchain, transaksi permanen. Untuk hack satu blok, penyerang harus mengontrol >50% daya komputasi jaringan — secara ekonomi mustahil.",
     ],
+    color: "text-secondary",
+    bgColor: "bg-secondary/10",
+    borderColor: "border-secondary/30",
   },
   {
-    icon: <BarChart2 size={20} />,
+    icon: BarChart2,
     tag: "03",
     title: "Kenapa Harga Naik Turun?",
     short: "Supply, demand, dan sentimen pasar global",
     content: [
-      "Bitcoin sangat volatile karena pasar masih relatif kecil dibanding aset tradisional. Supply terbatas 21 juta + demand yang berubah = harga yang bergerak liar. Ini adalah ciri khas aset early-stage.",
-      "Faktor utama: regulasi pemerintah (China ban = harga drop), adopsi institusional (BlackRock ETF approval = harga naik), halving events, kondisi makroekonomi global (inflasi, suku bunga), dan sentimen pasar (fear & greed).",
-      "Meskipun volatile jangka pendek, Bitcoin memiliki track record long-term yang kuat: dari $0.001 di 2010 ke $73.000+ di ATH 2024. Investor jangka panjang yang 'HODL' biasanya menang.",
+      "Bitcoin sangat volatile karena pasar masih relatif kecil. Supply terbatas 21 juta + demand berubah = harga bergerak liar. Ini ciri khas aset early-stage.",
+      "Faktor utama: regulasi pemerintah, adopsi institusional (BlackRock ETF), halving events, kondisi makroekonomi global, dan sentimen pasar (fear & greed).",
+      "Meskipun volatile jangka pendek, Bitcoin memiliki track record long-term yang kuat: dari $0.001 di 2010 ke $73.000+ di ATH 2024.",
     ],
+    color: "text-accent",
+    bgColor: "bg-accent/10",
+    borderColor: "border-accent/30",
   },
   {
-    icon: <Cpu size={20} />,
+    icon: Cpu,
     tag: "04",
     title: "Mining & Halving",
-    short: "Mekanisme deflasi yang membuat Bitcoin semakin langka",
+    short: "Mekanisme deflasi yang membuat BTC langka",
     content: [
-      "Mining adalah proses kompetitif dimana ribuan komputer bersaing memecahkan puzzle matematika SHA-256. Pemenang mendapat hak menambahkan blok baru dan menerima reward Bitcoin. Total daya komputasi jaringan (hashrate) kini mencapai 600+ EH/s.",
-      "Halving terjadi setiap 210.000 blok (~4 tahun) dan memotong reward miner 50%. Halving ke-4 terjadi April 2024: reward turun dari 6.25 BTC → 3.125 BTC per blok. Halving terakhir (ke-33) akan terjadi sekitar 2140, dimana semua 21 juta BTC sudah beredar.",
-      "Pola historis: setiap halving selalu diikuti bull market besar dalam 12-18 bulan. Alasannya sederhana: pasokan baru berkurang 50%, tapi demand (idealnya) tidak. Hukum supply & demand berkerja.",
+      "Mining adalah proses kompetitif dimana ribuan komputer bersaing memecahkan puzzle SHA-256. Pemenang mendapat reward Bitcoin. Hashrate jaringan kini mencapai 600+ EH/s.",
+      "Halving terjadi setiap 210.000 blok (~4 tahun) dan memotong reward 50%. Halving ke-4 terjadi April 2024: reward turun dari 6.25 BTC → 3.125 BTC per blok.",
+      "Pola historis: setiap halving selalu diikuti bull market besar dalam 12-18 bulan. Pasokan baru berkurang 50%, tapi demand tidak — hukum supply & demand bekerja.",
     ],
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+    borderColor: "border-warning/30",
   },
 ];
 
+const BLOCK_HASHES = ["0000...a04e", "b7d3...91c2", "c1e8...3d47", "f924...8b01"];
 const BLOCKS = [
-  { label: "Genesis Block", emoji: "⛓️" },
-  { label: "Block #891,240", emoji: "📦" },
-  { label: "Block #891,241", emoji: "📦" },
-  { label: "Block #891,242", emoji: "📦" },
+  { label: "Genesis Block", num: "#0", genesis: true },
+  { label: "Block #891,240", num: "#240", genesis: false },
+  { label: "Block #891,241", num: "#241", genesis: false },
+  { label: "Block #891,242", num: "#242", genesis: false },
 ];
 
 export default function AboutBitcoin() {
-  const [activeIdx, setActiveIdx] = useState(0);
-  const active = TOPICS[activeIdx];
+  const [active, setActive] = useState(0);
+  const topic = TOPICS[active];
 
   return (
-    <section id="tentang" className="relative py-28 px-5 sm:px-8 overflow-hidden">
-      {/* BG glow */}
-      <div
-        className="absolute left-0 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, oklch(var(--p)/0.05) 0%, transparent 70%)" }}
-      />
+    <section id="tentang" className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-base-content/8 to-transparent" />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="relative max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 text-primary"
-            style={{ background: "oklch(var(--p)/0.1)", border: "1px solid oklch(var(--p)/0.25)" }}
-          >
-            📚 Edukasi
-          </div>
-          <h2
-            style={{ fontFamily: "'Syne', sans-serif" }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-base-content mb-4"
-          >
-            Semua yang Perlu Kamu
-            <span className="gradient-text"> Tahu</span>
+          <span className="pill mb-5 inline-flex">
+            <Globe size={10} />
+            Modul Edukasi
+          </span>
+          <h2 className="font-display font-black text-base-content mb-4" style={{ fontSize: "clamp(2rem, 5vw, 3.8rem)", letterSpacing: "-0.02em" }}>
+            Belajar <span className="text-gradient">Bitcoin</span> Step by Step
           </h2>
-          <p className="text-base-content/50 max-w-xl mx-auto">
-            Pelajari Bitcoin dari dasar dengan penjelasan yang mudah dipahami, tanpa jargon berlebihan
+          <p className="text-base-content/50 text-base sm:text-lg max-w-xl mx-auto">
+            4 modul fundamental yang wajib kamu pahami sebelum masuk ke dunia kripto.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-6 lg:gap-10">
-          {/* Tab list */}
-          <div className="lg:col-span-2 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
+          {/* Sidebar tabs */}
+          <div className="lg:col-span-2 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scroll-x">
             {TOPICS.map((t, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIdx(i)}
-                className={`flex-shrink-0 lg:flex-shrink text-left p-4 rounded-2xl transition-all duration-300 ${
-                  activeIdx === i ? "red-glow-sm scale-[1.02]" : "hover:bg-base-content/5"
-                }`}
-                style={
-                  activeIdx === i
-                    ? { background: "oklch(var(--p)/0.1)", border: "1px solid oklch(var(--p)/0.35)" }
-                    : { background: "oklch(var(--b2)/0.5)", border: "1px solid oklch(var(--b3)/0.5)" }
-                }
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`p-2 rounded-xl transition-colors ${activeIdx === i ? "text-primary-content" : "text-base-content/40"}`}
-                    style={{ background: activeIdx === i ? "oklch(var(--p)/0.3)" : "oklch(var(--b3)/0.5)" }}
-                  >
-                    {t.icon}
+              <button key={i} onClick={() => setActive(i)}
+                className={`flex items-center gap-4 p-4 rounded-2xl border text-left transition-all duration-300 flex-shrink-0 w-72 sm:w-auto lg:w-auto ${
+                  active === i
+                    ? `${t.bgColor} ${t.borderColor} shadow-lg`
+                    : "border-base-content/8 hover:border-base-content/18 hover:bg-base-content/4"
+                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${active === i ? t.bgColor : "bg-base-content/6"}`}>
+                  <t.icon size={18} className={active === i ? t.color : "text-base-content/40"} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-[10px] font-mono-code font-bold uppercase tracking-wider mb-0.5 ${active === i ? t.color : "text-base-content/35"}`}>
+                    {t.tag}
                   </div>
-                  <div className="min-w-0">
-                    <div
-                      className="text-[10px] font-bold tracking-widest mb-0.5"
-                      style={{ color: activeIdx === i ? "oklch(var(--p))" : "oklch(var(--bc)/0.25)" }}
-                    >
-                      {t.tag}
-                    </div>
-                    <div className={`font-bold text-sm leading-tight ${activeIdx === i ? "text-base-content" : "text-base-content/60"}`}>
-                      {t.title}
-                    </div>
-                    <div className="hidden lg:block text-xs text-base-content/35 mt-1 leading-relaxed">{t.short}</div>
+                  <div className={`font-semibold text-sm leading-snug ${active === i ? "text-base-content" : "text-base-content/65"}`}>
+                    {t.title}
                   </div>
-                  {activeIdx === i && <ChevronRight size={14} className="ml-auto flex-shrink-0 mt-0.5 text-primary" />}
+                  <div className="text-xs text-base-content/35 mt-0.5 truncate">{t.short}</div>
                 </div>
               </button>
             ))}
           </div>
 
           {/* Content panel */}
-          <div
-            className="lg:col-span-3 rounded-3xl p-6 sm:p-8"
-            style={{ background: "oklch(var(--b2)/0.5)", border: "1px solid oklch(var(--p)/0.2)" }}
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 rounded-xl text-primary-content" style={{ background: "oklch(var(--p)/0.25)" }}>
-                {active.icon}
-              </div>
-              <div>
-                <div className="text-[10px] font-bold tracking-widest text-primary">{active.tag}</div>
-                <h3 style={{ fontFamily: "'Syne', sans-serif" }} className="text-xl font-black text-base-content">
-                  {active.title}
-                </h3>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {active.content.map((para, i) => (
-                <p key={i} className="text-base-content/65 leading-relaxed text-sm sm:text-base relative pl-4">
-                  <span
-                    className="absolute left-0 top-2 w-1.5 h-1.5 rounded-full"
-                    style={{ background: i === 0 ? "oklch(var(--p))" : "oklch(var(--p)/0.4)" }}
-                  />
-                  {para}
-                </p>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Blockchain visual */}
-        <div className="mt-20">
-          <div className="text-center mb-10">
-            <h3 style={{ fontFamily: "'Syne', sans-serif" }} className="text-xl sm:text-2xl font-black text-base-content mb-2">
-              Visualisasi Blockchain
-            </h3>
-            <p className="text-base-content/40 text-sm">Setiap blok terhubung lewat hash kriptografi</p>
-          </div>
-
-          {/* Responsive: scroll horizontally on mobile */}
-          <div className="overflow-x-auto pb-4">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-max mx-auto w-fit px-4">
-              {BLOCKS.map(({ label, emoji }, i) => (
-                <div key={i} className="flex items-center gap-2 sm:gap-3">
-                  <div
-                    className={`rounded-2xl p-3 sm:p-4 text-center transition-all hover:scale-105 cursor-default w-[100px] sm:w-[110px] ${
-                      i === 0 ? "red-glow-sm" : ""
-                    }`}
-                    style={{
-                      background: i === 0 ? "oklch(var(--p)/0.15)" : "oklch(var(--b2)/0.5)",
-                      border: i === 0 ? "1px solid oklch(var(--p)/0.4)" : "1px solid oklch(var(--b3)/0.5)",
-                    }}
-                  >
-                    <div className="text-xl mb-1">{emoji}</div>
-                    <div className="text-xs font-bold text-base-content/80">{label}</div>
-                    {/* Static hash — no Math.random() to avoid hydration mismatch */}
-                    <div
-                      className="text-[9px] font-mono mt-1.5 px-2 py-0.5 rounded-md text-primary"
-                      style={{ background: "oklch(var(--p)/0.1)" }}
-                    >
-                      {BLOCK_HASHES[i]}
-                    </div>
-                  </div>
-                  {/* Arrow connector */}
-                  <div className="flex items-center gap-0.5">
-                    <div className="w-3 sm:w-5 h-px bg-primary/50" />
-                    <div className="text-xs text-primary">→</div>
-                    <div className="w-3 sm:w-5 h-px bg-primary/50" />
-                  </div>
+          <div className="lg:col-span-3 space-y-5">
+            <div className={`glass-static p-6 sm:p-8 border ${topic.borderColor}`}>
+              <div className="flex items-start gap-4 mb-6">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${topic.bgColor} flex-shrink-0`}>
+                  <topic.icon size={22} className={topic.color} />
                 </div>
-              ))}
-              {/* "..." last block */}
-              <div
-                className="rounded-2xl p-3 sm:p-4 text-center"
-                style={{
-                  background: "oklch(var(--b2)/0.5)",
-                  border: "1px solid oklch(var(--b3)/0.5)",
-                }}
-              >
-                <div className="text-2xl font-bold text-base-content/30 px-2">···</div>
+                <div>
+                  <div className={`text-[10px] font-mono-code font-bold uppercase tracking-wider ${topic.color} mb-1`}>
+                    Modul {topic.tag}
+                  </div>
+                  <h3 className="font-display font-bold text-xl sm:text-2xl text-base-content" style={{ letterSpacing: "-0.01em" }}>
+                    {topic.title}
+                  </h3>
+                  <p className="text-base-content/50 text-sm mt-1">{topic.short}</p>
+                </div>
               </div>
+
+              <div className="space-y-4">
+                {topic.content.map((para, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className={`w-1 rounded-full flex-shrink-0 mt-1 ${topic.bgColor}`} style={{ minHeight: "1.25rem" }} />
+                    <p className="text-base-content/70 text-sm sm:text-base leading-relaxed">{para}</p>
+                  </div>
+                ))}
+              </div>
+
+              <a href="#artikel" className={`inline-flex items-center gap-2 mt-6 text-sm font-semibold ${topic.color} hover:gap-3 transition-all`}>
+                Baca Artikel Lengkap <ArrowRight size={14} />
+              </a>
             </div>
+
+            {/* Blockchain visual */}
+            {active === 1 && (
+              <div className="glass-static p-5 overflow-x-auto scroll-x">
+                <p className="text-[9px] font-mono-code uppercase tracking-[0.18em] text-base-content/30 mb-4">// Blockchain Structure</p>
+                <div className="flex items-center gap-0 min-w-max">
+                  {BLOCKS.map((block, i) => (
+                    <div key={i} className="flex items-center">
+                      <div className={`block-node p-3 text-center ${block.genesis ? "border-primary/40" : ""}`} style={{ minWidth: "120px" }}>
+                        <div className="text-lg mb-1">{block.genesis ? "⛓️" : "📦"}</div>
+                        <div className="text-[9px] font-mono-code text-base-content/50 font-bold">{block.num}</div>
+                        <div className="text-[8px] font-mono-code text-base-content/30 mt-1">{BLOCK_HASHES[i]}</div>
+                      </div>
+                      {i < BLOCKS.length - 1 && (
+                        <div className="block-connector mx-1" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Halving visual */}
+            {active === 3 && (
+              <div className="glass-static p-5">
+                <p className="text-[9px] font-mono-code uppercase tracking-[0.18em] text-base-content/30 mb-4">// Halving History</p>
+                <div className="space-y-3">
+                  {[
+                    { year: "2009", reward: "50 BTC", width: "100%" },
+                    { year: "2012", reward: "25 BTC", width: "50%" },
+                    { year: "2016", reward: "12.5 BTC", width: "25%" },
+                    { year: "2020", reward: "6.25 BTC", width: "12.5%" },
+                    { year: "2024", reward: "3.125 BTC", width: "6.25%", active: true },
+                  ].map((h) => (
+                    <div key={h.year} className="flex items-center gap-3">
+                      <span className="text-[10px] font-mono-code text-base-content/40 w-10 flex-shrink-0">{h.year}</span>
+                      <div className="flex-1 h-5 rounded-full bg-base-content/6 overflow-hidden relative">
+                        <div className={`h-full rounded-full ${h.active ? "bg-warning" : "bg-primary/60"} transition-all`} style={{ width: h.width }} />
+                      </div>
+                      <span className={`text-[10px] font-mono-code font-bold w-20 text-right flex-shrink-0 ${h.active ? "text-warning" : "text-base-content/50"}`}>
+                        {h.reward}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <p className="text-center text-xs text-base-content/25 mt-4 font-mono">
-            // Ubah 1 blok → seluruh rantai invalid → jaringan otomatis menolak
-          </p>
         </div>
       </div>
     </section>

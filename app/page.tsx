@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import BlogSection from "@/components/BlogSection";
 import AboutBitcoin from "@/components/AboutBitcoin";
 import LivePrice from "@/components/LivePrice";
 import Calculator_ from "@/components/Calculator";
@@ -11,6 +12,7 @@ export default function Home() {
     <main>
       <Navbar />
       <Hero />
+      <BlogSection />
       <AboutBitcoin />
       <LivePrice />
       <Calculator_ />

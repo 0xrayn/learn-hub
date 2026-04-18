@@ -1,185 +1,173 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useEffect, useState, useCallback } from "react";
 import { TrendingUp, TrendingDown, RefreshCw, Activity } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
+} from "recharts";
 
-const BASE_PRICE = 83420;
-const IDR_RATE = 16250;
+const RANGES = ["1H", "24H", "7D", "30D", "1Y"];
 
-function genData(days: number) {
-  const pts = 60;
+type PriceData = {
+  price: number;
+  change24h: number;
+  high24h: number;
+  low24h: number;
+  volume24h: number;
+  marketCap: number;
+};
+
+function generateChartData(range: string) {
+  const points = range === "1H" ? 60 : range === "24H" ? 96 : range === "7D" ? 84 : range === "30D" ? 60 : 52;
+  const base = 83000;
   const data = [];
-  let price = BASE_PRICE * (0.88 + Math.random() * 0.08);
-  const now = Date.now();
-  for (let i = pts; i >= 0; i--) {
-    price += (Math.random() - 0.469) * price * 0.022;
-    price = Math.max(price, BASE_PRICE * 0.55);
-    const ts = now - i * (days * 86400000 / pts);
-    const d = new Date(ts);
-    const label = days <= 1
-      ? d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-      : days <= 7
-        ? d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" })
-        : d.toLocaleDateString("id-ID", { month: "short", day: "numeric" });
-    data.push({ label, price: Math.round(price) });
+  let val = base - Math.random() * 3000;
+  for (let i = 0; i < points; i++) {
+    val += (Math.random() - 0.475) * (range === "1H" ? 200 : range === "24H" ? 500 : 800);
+    val = Math.max(val, 60000);
+    data.push({ t: i, price: Math.round(val) });
   }
   return data;
 }
 
-const fmt$ = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-const fmtIDR = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-
-const RANGES = [
-  { label: "1J", days: 0.04 },
-  { label: "24J", days: 1 },
-  { label: "7H", days: 7 },
-  { label: "30H", days: 30 },
-];
-
-const STATS = [
-  { label: "Harga USD", value: fmt$(BASE_PRICE), accent: true },
-  { label: "Harga IDR", value: fmtIDR(BASE_PRICE * IDR_RATE) },
-  { label: "Market Cap", value: "$1.64T" },
-  { label: "Volume 24J", value: "$28.4B" },
-];
+const fmt = (n: number, dec = 2) =>
+  n.toLocaleString("id-ID", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 export default function LivePrice() {
-  const [range, setRange] = useState(RANGES[1]);
-  const [data, setData] = useState<{ label: string; price: number }[]>([]);
+  const [range, setRange] = useState("24H");
+  const [chartData, setChartData] = useState(generateChartData("24H"));
+  const [priceData] = useState<PriceData>({
+    price: 83420,
+    change24h: 2.34,
+    high24h: 85240,
+    low24h: 81100,
+    volume24h: 38.2,
+    marketCap: 1640,
+  });
+  const [live, setLive] = useState(83420);
   const [loading, setLoading] = useState(false);
-  const [tick, setTick] = useState(0);
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setData(genData(range.days));
-      setTick(t => t + 1);
-      setLoading(false);
-    }, 500);
-  }, [range]);
-
-  useEffect(() => { setData(genData(range.days)); }, [range]);
   useEffect(() => {
-    const id = setInterval(() => setData(genData(range.days)), 30000);
+    const id = setInterval(() => {
+      setLive((p) => {
+        const change = (Math.random() - 0.5) * 200;
+        return Math.round(p + change);
+      });
+    }, 3000);
     return () => clearInterval(id);
-  }, [range]);
+  }, []);
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-xl p-3 text-sm shadow-2xl"
-        style={{ background: "rgba(10,10,15,0.95)", border: "1px solid rgba(232,0,45,0.3)" }}>
-        <div className="font-bold text-white">{fmt$(payload[0].value)}</div>
-        <div className="text-white/50 text-xs">{fmtIDR(payload[0].value * IDR_RATE)}</div>
-        <div className="text-white/30 text-[10px] mt-1 font-mono">{payload[0].payload.label}</div>
-      </div>
-    );
-  };
+  const changeRange = useCallback((r: string) => {
+    setLoading(true);
+    setRange(r);
+    setTimeout(() => {
+      setChartData(generateChartData(r));
+      setLoading(false);
+    }, 400);
+  }, []);
+
+  const isPositive = priceData.change24h > 0;
 
   return (
-    <section id="harga" className="relative py-28 px-5 sm:px-8"
-      style={{ background: "rgba(232,0,45,0.02)" }}>
-      {/* bg glow */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(232,0,45,0.06) 0%, transparent 70%)" }} />
+    <section id="harga" className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-base-content/8 to-transparent" />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="relative max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ background: "rgba(232,0,45,0.1)", border: "1px solid rgba(232,0,45,0.25)", color: "#ff4d6d" }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            Live Data
-          </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif" }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4">
-            Harga Bitcoin <span className="gradient-text">Real-Time</span>
+          <span className="pill mb-5 inline-flex">
+            <Activity size={10} />
+            Live Market Data
+          </span>
+          <h2 className="font-display font-black text-base-content mb-4" style={{ fontSize: "clamp(2rem, 5vw, 3.8rem)", letterSpacing: "-0.02em" }}>
+            Harga <span className="text-gradient">Real-time</span>
           </h2>
         </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          {STATS.map((s) => (
-            <div key={s.label} className={`rounded-2xl p-4 sm:p-5 transition-all hover:scale-[1.02] ${s.accent ? "red-glow-sm" : ""}`}
-              style={s.accent
-                ? { background: "rgba(232,0,45,0.12)", border: "1px solid rgba(232,0,45,0.35)" }
-                : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }
-              }>
-              <div className="text-[10px] uppercase tracking-widest font-bold mb-2"
-                style={{ color: s.accent ? "#ff4d6d" : "rgba(255,255,255,0.35)" }}>
-                {s.label}
-              </div>
-              <div className={`font-black text-base sm:text-xl font-mono ${s.accent ? "text-white" : "text-white/85"}`}>
-                {s.value}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Chart card */}
-        <div className="rounded-3xl p-5 sm:p-7"
-          style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
-          {/* Chart controls */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Activity size={18} style={{ color: "#e8002d" }} />
+        <div className="grid lg:grid-cols-3 gap-5">
+          {/* Chart panel */}
+          <div className="lg:col-span-2 glass-static p-5 sm:p-7">
+            {/* Price header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
-                <div className="text-xl font-black text-white font-mono">{fmt$(BASE_PRICE)}</div>
-                <div className="flex items-center gap-1 text-xs font-semibold text-green-400">
-                  <TrendingUp size={11} /> +2.34% (24J)
+                <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-base-content/35 mb-2">Bitcoin / USD</div>
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <span className="font-display font-black text-base-content" style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>
+                    ${fmt(live, 0)}
+                  </span>
+                  <span className={`flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-lg ${isPositive ? "bg-success/12 text-success" : "bg-error/12 text-error"}`}>
+                    {isPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                    {isPositive ? "+" : ""}{priceData.change24h}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  <span className="text-[10px] font-mono-code text-base-content/35">Live · diperbarui setiap 3 detik</span>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-xl overflow-hidden border border-white/10">
+
+              {/* Range buttons */}
+              <div className="flex gap-1 bg-base-content/5 p-1 rounded-xl self-start sm:self-auto">
                 {RANGES.map((r) => (
-                  <button key={r.label} onClick={() => setRange(r)}
-                    className={`px-3 py-1.5 text-xs font-bold transition-colors ${
-                      range.label === r.label
-                        ? "text-white"
-                        : "text-white/40 hover:text-white/70 hover:bg-white/5"
-                    }`}
-                    style={range.label === r.label ? { background: "rgba(232,0,45,0.7)" } : {}}>
-                    {r.label}
+                  <button key={r} onClick={() => changeRange(r)} className={`range-btn ${range === r ? "active" : ""}`}>
+                    {r}
                   </button>
                 ))}
               </div>
-              <button onClick={refresh}
-                className={`p-2 rounded-xl border border-white/10 hover:border-red-500/30 hover:bg-red-500/10 transition-all text-white/50 hover:text-white ${loading ? "animate-spin" : ""}`}>
-                <RefreshCw size={14} />
-              </button>
+            </div>
+
+            {/* Chart */}
+            <div className={`h-52 sm:h-64 transition-opacity duration-300 ${loading ? "opacity-40" : "opacity-100"}`}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="oklch(var(--p))" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="oklch(var(--p))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="t" hide />
+                  <YAxis domain={["auto", "auto"]} hide />
+                  <Tooltip
+                    content={({ active, payload }) =>
+                      active && payload?.length ? (
+                        <div className="glass-static px-3 py-2 text-xs">
+                          <span className="font-mono-code font-bold text-base-content">${fmt(payload[0].value as number, 0)}</span>
+                        </div>
+                      ) : null
+                    }
+                  />
+                  <Area type="monotone" dataKey="price" stroke="oklch(var(--p))" strokeWidth={2} fill="url(#priceGrad)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Chart */}
-          <div className="h-60 sm:h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="btcGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#e8002d" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#e8002d" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)", fontFamily: "JetBrains Mono" }}
-                  tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)", fontFamily: "JetBrains Mono" }}
-                  tickLine={false} axisLine={false}
-                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
-                  domain={["auto", "auto"]} width={42} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="price" stroke="#e8002d" strokeWidth={2}
-                  fill="url(#btcGrad)" dot={false}
-                  activeDot={{ r: 5, fill: "#e8002d", stroke: "#ff4d6d", strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+          {/* Stats panel */}
+          <div className="flex flex-col gap-4">
+            {[
+              { label: "24H High", value: `$${fmt(priceData.high24h, 0)}`, color: "text-success", icon: TrendingUp },
+              { label: "24H Low", value: `$${fmt(priceData.low24h, 0)}`, color: "text-error", icon: TrendingDown },
+              { label: "Volume 24H", value: `$${priceData.volume24h}B`, color: "text-primary", icon: Activity },
+              { label: "Market Cap", value: `$${priceData.marketCap}B`, color: "text-secondary", icon: Activity },
+            ].map((stat, i) => (
+              <div key={i} className="glass-static p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-base-content/6 flex items-center justify-center flex-shrink-0">
+                  <stat.icon size={16} className={stat.color} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono-code uppercase tracking-wider text-base-content/35 mb-0.5">{stat.label}</div>
+                  <div className={`font-display font-bold text-lg ${stat.color}`}>{stat.value}</div>
+                </div>
+              </div>
+            ))}
+
+            <div className="glass-static p-4 text-center">
+              <div className="text-[9px] font-mono-code uppercase tracking-[0.18em] text-base-content/30 mb-2">Data Source</div>
+              <div className="text-xs font-semibold text-base-content/55">CoinGecko API</div>
+              <div className="text-[10px] font-mono-code text-base-content/30 mt-1">Diperbarui otomatis</div>
+            </div>
           </div>
         </div>
-
-        <p className="text-center text-xs text-white/20 mt-4 font-mono">
-          // Data simulasi — integrasikan CoinGecko API untuk harga nyata
-        </p>
       </div>
     </section>
   );

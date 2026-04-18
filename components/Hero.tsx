@@ -1,133 +1,179 @@
 "use client";
 import dynamic from "next/dynamic";
-import { ArrowDown, Zap, Shield, TrendingUp, ChevronRight } from "lucide-react";
+import { Zap, Shield, Globe, ArrowRight, TrendingUp } from "lucide-react";
 
 const BitcoinGlobe = dynamic(() => import("./BitcoinGlobe"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-16 h-16 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin" />
+      <div className="relative w-20 h-20">
+        <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping" />
+        <div className="absolute inset-2 rounded-full border-2 border-primary/60 animate-spin" />
+        <div className="absolute inset-5 rounded-full bg-primary/20" />
+      </div>
     </div>
   ),
 });
 
 const STATS = [
-  { icon: "₿", label: "Kripto #1", sub: "by market cap" },
-  { icon: "🔗", label: "10+ Modul", sub: "materi gratis" },
-  { icon: "⚡", label: "Real-time", sub: "harga live" },
+  { value: "21M", label: "Max Supply", icon: Shield, color: "text-primary" },
+  { value: "10+", label: "Modul Gratis", icon: Globe, color: "text-secondary" },
+  { value: "Live", label: "Harga Real-time", icon: Zap, color: "text-accent" },
+];
+
+const TICKER_ITEMS = [
+  "₿ Bitcoin", "⛓ Blockchain", "⚡ Lightning", "🔐 Cryptography",
+  "📦 Mining", "🌐 DeFi", "💎 HODL", "🗝 Wallets", "📊 TA", "🏛 ETF",
+  "₿ Bitcoin", "⛓ Blockchain", "⚡ Lightning", "🔐 Cryptography",
+  "📦 Mining", "🌐 DeFi", "💎 HODL", "🗝 Wallets", "📊 TA", "🏛 ETF",
+];
+
+const FEATURED_POSTS = [
+  { tag: "Pemula", title: "Apa itu Bitcoin?", time: "5 mnt" },
+  { tag: "DeFi", title: "Cara Kerja Blockchain", time: "8 mnt" },
+  { tag: "Mining", title: "Halving 2024", time: "6 mnt" },
 ];
 
 export default function Hero() {
   return (
-    <section id="beranda" className="relative min-h-screen flex items-center pt-16 overflow-hidden">
-      {/* Grid background */}
-      <div className="absolute inset-0 grid-bg opacity-100" />
+    <section id="beranda" className="relative min-h-screen flex flex-col items-center pt-16 overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 grid-pattern opacity-60 pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
-      {/* Radial red glow center */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(232,0,45,0.08) 0%, transparent 70%)" }} />
+      {/* Orbs */}
+      <div className="absolute top-1/4 left-1/5 w-[600px] h-[600px] rounded-full pointer-events-none opacity-40"
+        style={{ background: "radial-gradient(circle, oklch(var(--p)/0.12) 0%, transparent 70%)", filter: "blur(80px)" }} />
+      <div className="absolute bottom-1/3 right-1/5 w-[500px] h-[500px] rounded-full pointer-events-none opacity-30"
+        style={{ background: "radial-gradient(circle, oklch(var(--s)/0.1) 0%, transparent 70%)", filter: "blur(100px)" }} />
+      <div className="absolute top-2/3 left-1/2 w-[300px] h-[300px] rounded-full pointer-events-none opacity-20"
+        style={{ background: "radial-gradient(circle, oklch(var(--a)/0.15) 0%, transparent 70%)", filter: "blur(60px)" }} />
 
-      {/* Top-right glow */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full pointer-events-none animate-glow"
-        style={{ background: "radial-gradient(circle, rgba(232,0,45,0.12) 0%, transparent 70%)" }} />
+      {/* Main content */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-12 sm:py-20 flex-1 flex flex-col justify-center">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
-      <div className="relative max-w-7xl mx-auto px-5 sm:px-8 w-full py-12">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-
-          {/* ---- TEXT SIDE ---- */}
-          <div className="space-y-7 text-center lg:text-left animate-fadeInUp">
+          {/* Text column */}
+          <div className="space-y-7 text-center lg:text-left order-2 lg:order-1">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-              style={{ background: "rgba(232,0,45,0.12)", border: "1px solid rgba(232,0,45,0.3)", color: "#ff4d6d" }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Web3 Education Platform
+            <div className="inline-flex opacity-0 animate-fade-in-left justify-center lg:justify-start w-full"
+              style={{ animationDelay: "0.1s", animationFillMode: "forwards" }}>
+              <span className="pill">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                Web3 Education Platform
+              </span>
             </div>
 
             {/* Heading */}
-            <h1 style={{ fontFamily: "'Syne', sans-serif" }}
-              className="text-4xl sm:text-5xl xl:text-6xl font-black leading-[1.05] tracking-tight text-white">
-              Kuasai{" "}
-              <span className="gradient-text text-glow">Bitcoin</span>
-              <br />
-              <span className="text-white/90">dari Nol</span>{" "}
-              <span className="text-white/40">sampai</span>{" "}
-              <span className="text-white">Pro</span>
-            </h1>
-
-            {/* Sub */}
-            <p className="text-base-content/60 text-base sm:text-lg leading-relaxed max-w-md mx-auto lg:mx-0">
-              Platform edukasi blockchain & kripto{" "}
-              <span className="text-white/80 font-medium">terlengkap dalam Bahasa Indonesia</span>.
-              Dari konsep dasar hingga analisis harga real-time.
-            </p>
+            <div className="opacity-0 animate-fade-in-left" style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}>
+              <h1 className="font-display" style={{ fontSize: "clamp(2.8rem, 6vw, 5rem)", lineHeight: 1.06, fontWeight: 900, letterSpacing: "-0.02em" }}>
+                Kuasai{" "}
+                <span className="text-gradient italic">Bitcoin</span>
+                <br />
+                <span className="text-base-content/75 font-semibold" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.8rem)" }}>
+                  dari Nol ke Pro
+                </span>
+              </h1>
+              <p className="mt-5 text-base-content/55 text-base sm:text-lg leading-relaxed max-w-[500px] mx-auto lg:mx-0">
+                Platform edukasi blockchain & kripto terlengkap dalam Bahasa Indonesia.{" "}
+                <span className="text-base-content/80 font-semibold">Gratis selamanya.</span>
+              </p>
+            </div>
 
             {/* CTAs */}
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-              <a href="#tentang"
-                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white text-sm red-glow hover:scale-105 transition-all duration-200"
-                style={{ background: "linear-gradient(135deg, #e8002d, #ff4d6d)" }}>
-                Mulai Belajar Sekarang
-                <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+            <div className="flex flex-wrap gap-3 justify-center lg:justify-start opacity-0 animate-fade-in-left"
+              style={{ animationDelay: "0.35s", animationFillMode: "forwards" }}>
+              <a href="#artikel" className="btn btn-primary gap-2 font-semibold tracking-wide btn-glow rounded-xl px-6">
+                <Zap size={15} />
+                Mulai Belajar
               </a>
-              <a href="#harga"
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white/80 hover:text-white hover:bg-white/5 border border-white/10 hover:border-red-500/30 transition-all duration-200">
-                <TrendingUp size={16} style={{ color: "#e8002d" }} />
-                Harga Live
+              <a href="#harga" className="btn btn-ghost gap-2 border border-base-content/12 hover:border-primary/30 hover:bg-primary/6 font-medium rounded-xl">
+                Live Price
+                <ArrowRight size={14} />
               </a>
             </div>
 
-            {/* Stats row */}
-            <div className="flex flex-wrap gap-5 justify-center lg:justify-start pt-2">
+            {/* Stats */}
+            <div className="flex flex-wrap gap-5 justify-center lg:justify-start opacity-0 animate-fade-in-left"
+              style={{ animationDelay: "0.45s", animationFillMode: "forwards" }}>
               {STATS.map((s) => (
-                <div key={s.label} className="flex items-center gap-2.5">
-                  <div className="text-xl">{s.icon}</div>
+                <div key={s.label} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-base-content/6 flex items-center justify-center">
+                    <s.icon size={15} className={s.color} />
+                  </div>
                   <div>
-                    <div className="text-sm font-bold text-white">{s.label}</div>
-                    <div className="text-xs text-white/40">{s.sub}</div>
+                    <div className="font-display font-black text-xl text-base-content leading-none">{s.value}</div>
+                    <div className="text-[11px] font-mono-code text-base-content/40 mt-0.5">{s.label}</div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Mini blog preview */}
+            <div className="opacity-0 animate-fade-in-left" style={{ animationDelay: "0.55s", animationFillMode: "forwards" }}>
+              <p className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-base-content/30 mb-3 text-center lg:text-left">
+                // Artikel Terbaru
+              </p>
+              <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-2">
+                {FEATURED_POSTS.map((post, i) => (
+                  <a key={i} href="#artikel"
+                    className="flex items-center gap-3 glass-static px-3.5 py-2.5 hover:border-primary/30 hover:bg-base-content/5 transition-all duration-200 cursor-pointer flex-1">
+                    <TrendingUp size={12} className="text-primary flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-base-content/75 truncate">{post.title}</div>
+                      <div className="text-[10px] font-mono-code text-base-content/35">{post.tag} · {post.time}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* ---- GLOBE SIDE ---- */}
-          <div className="relative flex items-center justify-center">
-            {/* Outer glow ring */}
-            <div className="absolute w-[380px] h-[380px] sm:w-[460px] sm:h-[460px] rounded-full animate-glow"
-              style={{ background: "radial-gradient(circle, rgba(232,0,45,0.12) 0%, transparent 65%)" }} />
+          {/* Globe column */}
+          <div className="relative flex items-center justify-center opacity-0 animate-scale-in order-1 lg:order-2"
+            style={{ animationDelay: "0.25s", animationFillMode: "forwards" }}>
+            {/* Rings */}
+            <div className="absolute w-[400px] h-[400px] sm:w-[520px] sm:h-[520px] rounded-full border border-primary/8 animate-spin-slow pointer-events-none" />
+            <div className="absolute w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-full border border-secondary/6 animate-counter-spin pointer-events-none" />
+            <div className="absolute w-[460px] h-[460px] sm:w-[580px] sm:h-[580px] rounded-full pointer-events-none"
+              style={{ background: "radial-gradient(circle, oklch(var(--p)/0.06) 0%, transparent 65%)" }} />
 
-            {/* Decorative circles */}
-            <div className="absolute w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] rounded-full border border-red-500/10 animate-spin-slow" />
-            <div className="absolute w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] rounded-full border border-red-500/15 animate-counter-spin" />
-
-            {/* Globe canvas container */}
-            <div className="relative w-[320px] h-[320px] sm:w-[420px] sm:h-[420px] lg:w-[480px] lg:h-[480px]">
+            {/* Globe */}
+            <div className="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] lg:w-[460px] lg:h-[460px]">
               <BitcoinGlobe />
             </div>
 
-            {/* Floating info cards */}
-            <div className="absolute top-6 -right-2 sm:right-4 glass-card px-3 py-2 rounded-xl animate-float"
-              style={{ animationDelay: "0s" }}>
-              <div className="text-xs text-white/50 font-mono">BTC/USD</div>
-              <div className="text-sm font-bold" style={{ color: "#4ade80" }}>+2.34% ↑</div>
+            {/* Floating cards */}
+            <div className="absolute top-4 right-0 sm:-right-4 glass-static px-4 py-3 animate-float shadow-xl">
+              <div className="text-[9px] font-mono-code uppercase tracking-[0.15em] text-base-content/40 mb-1">BTC / USD</div>
+              <div className="text-sm font-display font-bold text-success">+2.34% ↑</div>
+              <div className="text-xs font-mono-code text-base-content/60">$83,420</div>
             </div>
-            <div className="absolute bottom-12 -left-2 sm:left-4 glass-card px-3 py-2 rounded-xl animate-float"
-              style={{ animationDelay: "1.5s" }}>
-              <div className="text-xs text-white/50 font-mono">BLOCK HEIGHT</div>
-              <div className="text-sm font-bold text-white/90">#893,241</div>
+
+            <div className="absolute bottom-12 left-0 sm:-left-6 glass-static px-4 py-3 animate-float-delay shadow-xl">
+              <div className="text-[9px] font-mono-code uppercase tracking-[0.15em] text-base-content/40 mb-1">Block Height</div>
+              <div className="text-sm font-display font-bold text-base-content">#895,241</div>
             </div>
-            <div className="absolute bottom-4 right-4 sm:right-8 glass-card px-3 py-2 rounded-xl animate-float"
-              style={{ animationDelay: "0.8s" }}>
-              <div className="text-xs text-white/50">Nodes aktif</div>
-              <div className="text-sm font-bold" style={{ color: "#e8002d" }}>17,429</div>
+
+            <div className="absolute bottom-0 right-4 glass-static px-4 py-3 shadow-xl" style={{ animation: "float 7s ease-in-out 4s infinite" }}>
+              <div className="text-[9px] font-mono-code uppercase tracking-[0.15em] text-base-content/40 mb-1">Active Nodes</div>
+              <div className="text-sm font-display font-bold text-primary">17,429</div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/20 animate-bounce">
-          <span className="text-xs font-mono tracking-widest uppercase">scroll</span>
-          <ArrowDown size={14} />
+      {/* Ticker */}
+      <div className="w-full border-t border-base-content/6 bg-base-content/3 backdrop-blur-sm overflow-hidden py-3.5 flex-shrink-0">
+        <div className="flex animate-marquee">
+          <div className="ticker-track flex-shrink-0">
+            {TICKER_ITEMS.map((item, i) => (
+              <span key={i} className="text-[11px] font-mono-code font-medium text-base-content/30 uppercase tracking-[0.12em]">
+                {item}
+                <span className="ml-14 text-primary/25">·</span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>

@@ -1,148 +1,145 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeftRight, Zap } from "lucide-react";
+import { Calculator, ArrowLeftRight, TrendingUp } from "lucide-react";
 
-const BTC_IDR = 83420 * 16250;
+const BTC_PRICE = 83420;
 
-const fmtIDR = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-const fmtBTC = (n: number) => n.toFixed(8);
+export default function CalculatorSection() {
+  const [idrInput, setIdrInput] = useState("");
+  const [btcInput, setBtcInput] = useState("");
+  const [mode, setMode] = useState<"idr2btc" | "btc2idr">("idr2btc");
 
-const QUICK_BTC = [0.001, 0.01, 0.1, 0.5, 1];
-const QUICK_IDR = [100_000, 500_000, 1_000_000, 5_000_000, 10_000_000];
+  const IDR_RATE = 16250;
+  const btcUsd = BTC_PRICE;
+  const btcIdr = btcUsd * IDR_RATE;
 
-export default function Calculator_() {
-  const [btc, setBtc] = useState("");
-  const [idr, setIdr] = useState("");
-  const [mode, setMode] = useState<"btc"|"idr">("btc");
+  const handleIdr = (val: string) => {
+    setIdrInput(val);
+    const n = parseFloat(val.replace(/\./g, "").replace(",", "."));
+    if (!isNaN(n)) setBtcInput((n / btcIdr).toFixed(8));
+    else setBtcInput("");
+  };
 
-  const onBtc = (val: string) => {
-    setBtc(val);
+  const handleBtc = (val: string) => {
+    setBtcInput(val);
     const n = parseFloat(val);
-    setIdr(isNaN(n) ? "" : Math.round(n * BTC_IDR).toString());
-    setMode("btc");
+    if (!isNaN(n)) setIdrInput(Math.round(n * btcIdr).toLocaleString("id-ID"));
+    else setIdrInput("");
   };
-  const onIdr = (val: string) => {
-    setIdr(val);
-    const n = parseFloat(val.replace(/[^\d.]/g, ""));
-    setBtc(isNaN(n) ? "" : fmtBTC(n / BTC_IDR));
-    setMode("idr");
-  };
+
+  const SCENARIOS = [
+    { label: "Rp 100.000", idr: 100000 },
+    { label: "Rp 500.000", idr: 500000 },
+    { label: "Rp 1.000.000", idr: 1000000 },
+    { label: "Rp 5.000.000", idr: 5000000 },
+  ];
 
   return (
-    <section id="kalkulator" className="relative py-28 px-5 sm:px-8 overflow-hidden">
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(232,0,45,0.06) 0%, transparent 70%)" }} />
+    <section id="kalkulator" className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-base-content/8 to-transparent" />
+      <div className="absolute inset-0 dot-pattern opacity-40 pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="relative max-w-7xl mx-auto">
         <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ background: "rgba(232,0,45,0.1)", border: "1px solid rgba(232,0,45,0.25)", color: "#ff4d6d" }}>
-            ⚡ Kalkulator
-          </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif" }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4">
-            Konversi <span className="gradient-text">BTC ↔ Rupiah</span>
+          <span className="pill mb-5 inline-flex">
+            <Calculator size={10} />
+            Konverter
+          </span>
+          <h2 className="font-display font-black text-base-content mb-4" style={{ fontSize: "clamp(2rem, 5vw, 3.8rem)", letterSpacing: "-0.02em" }}>
+            Kalkulator <span className="text-gradient">Bitcoin</span>
           </h2>
-          <p className="text-white/50">Hitung nilai Bitcoin kamu dalam Rupiah secara instan</p>
+          <p className="text-base-content/50 max-w-md mx-auto text-base">
+            Konversi IDR ke BTC dan sebaliknya secara real-time.
+          </p>
         </div>
 
-        <div className="max-w-md mx-auto">
-          {/* Rate banner */}
-          <div className="flex items-center justify-between px-5 py-3 rounded-2xl mb-6"
-            style={{ background: "rgba(232,0,45,0.08)", border: "1px solid rgba(232,0,45,0.2)" }}>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-white/60 text-sm">1 BTC</span>
-              <span className="text-white/30">=</span>
-            </div>
-            <span className="font-black text-white font-mono">{fmtIDR(BTC_IDR)}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}>
-              LIVE
-            </span>
-          </div>
-
-          <div className="rounded-3xl p-6 sm:p-8 space-y-4"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}>
-
-            {/* BTC field */}
-            <div>
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-2"
-                style={{ color: mode === "btc" ? "#e8002d" : "rgba(255,255,255,0.35)" }}>
-                <span className="text-base">₿</span> Bitcoin
-              </label>
-              <div className="relative">
-                <input type="number" value={btc} onChange={e => onBtc(e.target.value)}
-                  placeholder="0.00000000" step="0.00000001" min="0"
-                  className="w-full px-4 py-3.5 pr-16 rounded-xl font-mono text-lg bg-transparent text-white placeholder-white/20 outline-none transition-all"
-                  style={{
-                    border: mode === "btc" ? "1px solid rgba(232,0,45,0.5)" : "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: mode === "btc" ? "0 0 20px rgba(232,0,45,0.15)" : "none",
-                  }} />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "#e8002d" }}>BTC</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {QUICK_BTC.map(a => (
-                  <button key={a} onClick={() => onBtc(a.toString())}
-                    className="px-2.5 py-1 rounded-lg text-xs font-mono text-white/50 hover:text-white transition-colors"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    {a}
-                  </button>
-                ))}
-              </div>
+        <div className="max-w-2xl mx-auto">
+          <div className="glass-static p-6 sm:p-8 mb-5">
+            {/* Mode toggle */}
+            <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl mb-7">
+              <button onClick={() => setMode("idr2btc")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mode === "idr2btc" ? "bg-primary text-primary-content" : "text-base-content/50 hover:text-base-content"}`}>
+                IDR → BTC
+              </button>
+              <button onClick={() => setMode("btc2idr")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mode === "btc2idr" ? "bg-primary text-primary-content" : "text-base-content/50 hover:text-base-content"}`}>
+                BTC → IDR
+              </button>
             </div>
 
-            {/* Swap */}
-            <div className="flex justify-center">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl"
-                style={{ background: "rgba(232,0,45,0.15)", border: "1px solid rgba(232,0,45,0.3)" }}>
-                <ArrowLeftRight size={16} style={{ color: "#e8002d" }} />
-              </div>
-            </div>
-
-            {/* IDR field */}
-            <div>
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-2"
-                style={{ color: mode === "idr" ? "#e8002d" : "rgba(255,255,255,0.35)" }}>
-                <span className="text-base">🇮🇩</span> Rupiah
-              </label>
-              <div className="relative">
-                <input type="number" value={idr} onChange={e => onIdr(e.target.value)}
-                  placeholder="0" step="1000" min="0"
-                  className="w-full px-4 py-3.5 pr-16 rounded-xl font-mono text-lg bg-transparent text-white placeholder-white/20 outline-none transition-all"
-                  style={{
-                    border: mode === "idr" ? "1px solid rgba(232,0,45,0.5)" : "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: mode === "idr" ? "0 0 20px rgba(232,0,45,0.15)" : "none",
-                  }} />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "#e8002d" }}>IDR</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {QUICK_IDR.map(a => (
-                  <button key={a} onClick={() => onIdr(a.toString())}
-                    className="px-2.5 py-1 rounded-lg text-xs font-mono text-white/50 hover:text-white transition-colors"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    {a >= 1_000_000 ? `${a / 1_000_000}jt` : `${a / 1000}rb`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Result */}
-            {btc && idr && (
-              <div className="rounded-2xl px-5 py-4 text-center mt-2"
-                style={{ background: "rgba(232,0,45,0.08)", border: "1px solid rgba(232,0,45,0.2)" }}>
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  <span className="font-bold text-white font-mono">{btc} BTC</span>
-                  <Zap size={14} style={{ color: "#e8002d" }} />
-                  <span className="font-bold text-white font-mono">{fmtIDR(parseFloat(idr))}</span>
+            <div className="space-y-4">
+              {/* IDR input */}
+              <div>
+                <label className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-base-content/40 block mb-2">
+                  {mode === "idr2btc" ? "Jumlah IDR (Rupiah)" : "Hasil IDR"}
+                </label>
+                <div className="flex items-center gap-3 input-glass p-3.5">
+                  <span className="text-base-content/35 font-mono-code text-sm font-bold flex-shrink-0">Rp</span>
+                  <input
+                    type="text"
+                    className="flex-1 bg-transparent outline-none text-base-content font-mono-code text-base font-bold placeholder:text-base-content/20"
+                    placeholder="0"
+                    value={mode === "idr2btc" ? idrInput : (btcInput ? Math.round(parseFloat(btcInput) * btcIdr).toLocaleString("id-ID") : "")}
+                    onChange={mode === "idr2btc" ? (e) => handleIdr(e.target.value) : undefined}
+                    readOnly={mode === "btc2idr"}
+                  />
                 </div>
               </div>
-            )}
+
+              {/* Swap icon */}
+              <div className="flex justify-center">
+                <button onClick={() => setMode(mode === "idr2btc" ? "btc2idr" : "idr2btc")}
+                  className="w-9 h-9 rounded-xl bg-base-content/8 hover:bg-primary/20 hover:text-primary flex items-center justify-center text-base-content/40 transition-all duration-200">
+                  <ArrowLeftRight size={15} />
+                </button>
+              </div>
+
+              {/* BTC input */}
+              <div>
+                <label className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-base-content/40 block mb-2">
+                  {mode === "btc2idr" ? "Jumlah BTC" : "Hasil BTC"}
+                </label>
+                <div className="flex items-center gap-3 input-glass p-3.5">
+                  <span className="text-base-content/35 font-mono-code text-sm font-bold flex-shrink-0">₿</span>
+                  <input
+                    type="number"
+                    step="0.00000001"
+                    className="flex-1 bg-transparent outline-none text-base-content font-mono-code text-base font-bold placeholder:text-base-content/20"
+                    placeholder="0.00000000"
+                    value={mode === "btc2idr" ? btcInput : btcInput}
+                    onChange={mode === "btc2idr" ? (e) => handleBtc(e.target.value) : undefined}
+                    readOnly={mode === "idr2btc"}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Rate info */}
+            <div className="mt-5 p-3.5 rounded-xl bg-base-content/4 border border-base-content/6 flex flex-wrap gap-3 justify-between text-xs font-mono-code text-base-content/40">
+              <span>1 BTC = ${btcUsd.toLocaleString()}</span>
+              <span>1 USD ≈ Rp {IDR_RATE.toLocaleString("id-ID")}</span>
+            </div>
           </div>
 
-          <p className="text-center text-xs text-white/20 mt-5 font-mono">
-            // Harga simulasi. Bukan saran investasi.
-          </p>
+          {/* Quick scenarios */}
+          <div className="glass-static p-5">
+            <p className="text-[9px] font-mono-code uppercase tracking-[0.18em] text-base-content/30 mb-4 flex items-center gap-2">
+              <TrendingUp size={10} />
+              Simulasi Cepat
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {SCENARIOS.map((s) => (
+                <button key={s.label}
+                  onClick={() => handleIdr(s.idr.toString())}
+                  className="p-3 rounded-xl border border-base-content/8 hover:border-primary/30 hover:bg-primary/6 transition-all text-left group">
+                  <div className="text-xs font-semibold text-base-content/60 group-hover:text-base-content mb-1">{s.label}</div>
+                  <div className="text-[10px] font-mono-code text-primary">
+                    ≈ {(s.idr / btcIdr).toFixed(6)} BTC
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
