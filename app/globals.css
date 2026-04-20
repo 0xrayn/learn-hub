@@ -126,12 +126,9 @@ body { background: var(--bg-page, #050810); color: var(--text-main, #e8eaf0); }
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(245,158,11,0.15);
 }
-[data-theme="light"] .glass-bright {
-  background: rgba(255,255,255,0.92);
-  border-color: rgba(217,119,6,0.2);
-}
-[data-theme="forest"] .glass-bright { border-color: rgba(34,197,94,0.2); }
-[data-theme="retro"]  .glass-bright { border-color: rgba(251,146,60,0.2); }
+[data-theme="light"]  .glass-bright { background: rgba(255,255,255,0.92); border-color: rgba(217,119,6,0.2); }
+[data-theme="forest"] .glass-bright { background: rgba(10,28,14,0.90); border-color: rgba(34,197,94,0.2); }
+[data-theme="retro"]  .glass-bright { background: rgba(28,18,0,0.90);  border-color: rgba(251,146,60,0.2); }
 
 /* ── Neon glow ── */
 .glow-amber { box-shadow: 0 0 20px rgba(245,158,11,0.25), 0 0 60px rgba(245,158,11,0.08); }
@@ -142,18 +139,22 @@ body { background: var(--bg-page, #050810); color: var(--text-main, #e8eaf0); }
 .grad-border {
   position: relative;
   border-radius: 1rem;
-  background: var(--bg-card, #0c1120);
+  /* Explicit fallback so it's never transparent */
+  background: rgba(12,17,32,0.92);
+  background: var(--bg-card, rgba(12,17,32,0.92));
 }
 .grad-border::before {
   content: '';
   position: absolute; inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(245,158,11,0.35), rgba(6,182,212,0.15), transparent 60%);
+  background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(6,182,212,0.12), transparent 55%);
   z-index: -1;
 }
-[data-theme="light"] .grad-border { background: rgba(255,255,255,0.9); }
-[data-theme="light"] .grad-border::before { background: linear-gradient(135deg,rgba(217,119,6,0.3),rgba(8,145,178,0.15),transparent 60%); }
+[data-theme="light"]  .grad-border { background: rgba(255,255,255,0.92); }
+[data-theme="light"]  .grad-border::before { background: linear-gradient(135deg,rgba(217,119,6,0.3),rgba(8,145,178,0.15),transparent 60%); }
+[data-theme="forest"] .grad-border { background: rgba(10,28,14,0.88); }
 [data-theme="forest"] .grad-border::before { background: linear-gradient(135deg,rgba(34,197,94,0.35),rgba(134,239,172,0.15),transparent 60%); }
+[data-theme="retro"]  .grad-border { background: rgba(28,18,0,0.88); }
 [data-theme="retro"]  .grad-border::before { background: linear-gradient(135deg,rgba(251,146,60,0.35),rgba(251,191,36,0.15),transparent 60%); }
 
 /* ── Text colors theme-aware ── */
@@ -189,10 +190,48 @@ body { background: var(--bg-page, #050810); color: var(--text-main, #e8eaf0); }
 /* ── Section reveal ── */
 .reveal {
   opacity: 0;
-  transform: translateY(32px);
-  transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);
+  transform: translateY(40px);
+  transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1);
+  will-change: opacity, transform;
 }
 .reveal.show { opacity:1; transform:none; }
+
+/* Staggered child reveals */
+.reveal-children > * {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
+}
+.reveal-children.show > *:nth-child(1) { opacity:1; transform:none; transition-delay: .05s; }
+.reveal-children.show > *:nth-child(2) { opacity:1; transform:none; transition-delay: .15s; }
+.reveal-children.show > *:nth-child(3) { opacity:1; transform:none; transition-delay: .25s; }
+.reveal-children.show > *:nth-child(4) { opacity:1; transform:none; transition-delay: .35s; }
+.reveal-children.show > *:nth-child(5) { opacity:1; transform:none; transition-delay: .42s; }
+.reveal-children.show > *:nth-child(6) { opacity:1; transform:none; transition-delay: .49s; }
+
+/* Slide from left */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity .85s cubic-bezier(.16,1,.3,1), transform .85s cubic-bezier(.16,1,.3,1);
+}
+.reveal-left.show { opacity:1; transform:none; }
+
+/* Slide from right */
+.reveal-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity .85s cubic-bezier(.16,1,.3,1), transform .85s cubic-bezier(.16,1,.3,1);
+}
+.reveal-right.show { opacity:1; transform:none; }
+
+/* Scale up */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);
+}
+.reveal-scale.show { opacity:1; transform:scale(1); }
 
 /* ── Module cards ── */
 .module-card {
@@ -260,4 +299,145 @@ body::after {
 /* ── Responsive: hide overflow on mobile ── */
 @media (max-width: 640px) {
   .font-mono-styled { font-size: 0.8em; }
+}
+
+/* ── Gradient text — reliable cross-browser ── */
+.gradient-text-bitcoin {
+  background-image: linear-gradient(135deg, var(--color-primary,#f59e0b) 0%, #fcd34d 45%, #f97316 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  display: inline;
+  /* NO filter here — filter breaks -webkit-text-fill-color on many browsers */
+}
+
+/* ══════════════════════════════════════════════
+   MOBILE & TABLET RESPONSIVE FIXES
+   Semua style di bawah hanya aktif di < 1024px.
+   Desktop (≥ 1024px) tidak tersentuh.
+   ══════════════════════════════════════════════ */
+
+/* ── Global: prevent horizontal overflow ── */
+@media (max-width: 1023px) {
+  html, body { overflow-x: hidden; }
+
+  /* Sections: reduce vertical padding */
+  section.py-24 { padding-top: 4rem !important; padding-bottom: 4rem !important; }
+
+  /* Section headings */
+  .text-3xl { font-size: 1.75rem !important; }
+  .text-4xl { font-size: 2rem !important; }
+}
+
+/* ── HeroSection ── */
+@media (max-width: 1023px) {
+  .hero-inner {
+    padding: 40px 20px 28px !important;
+    gap: 28px !important;
+  }
+  .hero-stat-bar {
+    padding: 0 16px 28px !important;
+    gap: 8px !important;
+  }
+  .stat-pill {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ── PriceSection: chart overflows on narrow screens ── */
+@media (max-width: 1023px) {
+  /* Stats grid: always 2 cols on mobile */
+  #harga .grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Period buttons: allow wrap */
+  #harga [style*="gap:4"] { flex-wrap: wrap !important; gap: 6px !important; }
+
+  /* X-axis labels: hide middle ones on very narrow */
+  #harga .flex.justify-between span:nth-child(2),
+  #harga .flex.justify-between span:nth-child(4) { display: none; }
+
+  /* Chart header: stack on mobile */
+  #harga .flex-col.sm\\:flex-row { flex-direction: column !important; gap: 10px !important; }
+}
+
+@media (max-width: 479px) {
+  /* Stats card value: smaller font */
+  #harga .font-black.font-mono-styled { font-size: 0.85rem !important; }
+  #harga .grad-border .text-base { font-size: 0.8rem !important; }
+  #harga .text-sm { font-size: 0.7rem !important; }
+}
+
+/* ── ArtikelSection: filter buttons wrap nicely ── */
+@media (max-width: 1023px) {
+  #artikel .grid { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  #artikel .grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 479px) {
+  /* Filter pill buttons: smaller */
+  #artikel button { font-size: 11px !important; padding: 6px 10px !important; }
+}
+
+/* ── EdukasiSection ── */
+@media (max-width: 1023px) {
+  #edukasi .grid { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  #edukasi .grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── KonverterSection: prevent overflow ── */
+@media (max-width: 1023px) {
+  #konverter input[type="number"] { font-size: 16px !important; } /* prevent iOS zoom */
+  #konverter .font-mono-styled { word-break: break-all; }
+}
+
+/* ── FAQSection ── */
+@media (max-width: 1023px) {
+  #faq .grad-border button span:first-child { font-size: 13px !important; }
+}
+@media (max-width: 479px) {
+  #faq .grad-border button { padding: 14px 14px !important; }
+  #faq .text-3xl { font-size: 1.6rem !important; }
+}
+
+/* ── StatsSection ── */
+@media (max-width: 479px) {
+  /* Already uses JS to switch to 2 cols but ensure padding is sane */
+  .stat-card-inner { padding: 20px 12px 18px !important; }
+}
+
+/* ── Footer ── */
+@media (max-width: 639px) {
+  /* Newsletter input row: stack */
+  footer .flex.gap-8 { gap: 0 !important; }
+
+  /* Footer grid: 2 cols on mobile */
+  footer .grid-cols-2 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Hide extra columns, show only 2 */
+  footer .grid > div:nth-child(n+4) { display: none; }
+}
+
+/* ── PriceTicker ── */
+@media (max-width: 1023px) {
+  .ticker-running { animation-duration: 30s !important; }
+}
+
+/* ── Touch-friendly tap targets ── */
+@media (max-width: 1023px) {
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Minimum 44px touch target for small buttons */
+  nav button { min-height: 40px; min-width: 40px; }
+}
+
+/* ── Prevent text overflow ── */
+@media (max-width: 1023px) {
+  .font-mono-styled { word-break: break-word; }
+  h1, h2, h3 { overflow-wrap: break-word; hyphens: auto; }
 }

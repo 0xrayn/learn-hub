@@ -34,6 +34,22 @@ export default function KonverterSection() {
 
   return (
     <section id="konverter" className="py-24 px-4 reveal">
+      <style>{`
+        @media (max-width: 1023px) {
+          .konverter-rate-bar {
+            flex-direction: column !important;
+            gap: 8px !important;
+            align-items: flex-start !important;
+          }
+          .konverter-rate-bar > div {
+            display: flex; gap: 8px; flex-wrap: wrap;
+          }
+        }
+        @media (max-width: 479px) {
+          .konverter-mode-tab span { font-size: 10px !important; }
+          .konverter-preset-btn { font-size: 10px !important; padding: 5px 8px !important; }
+        }
+      `}</style>
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 text-xs font-semibold glass px-3 py-1 rounded-full border mb-4"
@@ -46,9 +62,9 @@ export default function KonverterSection() {
           <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.45 }}>Kurs realtime diupdate otomatis.</p>
         </div>
 
-        <div className="grad-border p-6 sm:p-8">
+        <div className="grad-border p-5 sm:p-8 reveal-scale">
           {/* Rate bar */}
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderRadius:12, marginBottom:24,
+          <div className="konverter-rate-bar" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderRadius:12, marginBottom:24,
             background:"color-mix(in srgb, var(--color-primary,#f59e0b) 6%, transparent)",
             border:"1px solid color-mix(in srgb, var(--color-primary,#f59e0b) 15%, transparent)" }}>
             <span style={{ fontSize:12, color:"var(--text-main,#e8eaf0)", opacity:.7 }}>
@@ -67,12 +83,12 @@ export default function KonverterSection() {
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:3, padding:4, borderRadius:12,
             background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.05)", marginBottom:24 }}>
             {(["btcToIdr","idrToBtc","usdToIdr"] as Mode[]).map(m => (
-              <button key={m} onClick={() => { setMode(m); setInput(""); }}
+              <button key={m} className="konverter-mode-tab" onClick={() => { setMode(m); setInput(""); }}
                 style={{ padding:"10px 4px", borderRadius:9, fontSize:12, fontWeight:700, cursor:"pointer",
                   background: mode===m ? "color-mix(in srgb, var(--color-primary,#f59e0b) 15%, transparent)" : "transparent",
                   color: mode===m ? "var(--color-primary,#f59e0b)" : "var(--text-main,#e8eaf0)",
                   border:"none", opacity: mode===m ? 1 : 0.5, transition:"all .2s" }}>
-                {m==="btcToIdr" ? "BTC → IDR" : m==="idrToBtc" ? "IDR → BTC" : "USD → IDR"}
+                <span>{m==="btcToIdr" ? "BTC → IDR" : m==="idrToBtc" ? "IDR → BTC" : "USD → IDR"}</span>
               </button>
             ))}
           </div>
@@ -86,7 +102,7 @@ export default function KonverterSection() {
               <span style={{ paddingLeft:16, color:"var(--color-primary,#f59e0b)", fontWeight:700, fontSize:14, flexShrink:0 }}>{prefix}</span>
               <input type="number" value={input} onChange={e => setInput(e.target.value)} placeholder="0"
                 style={{ flex:1, background:"transparent", border:"none", padding:"14px 12px", fontSize:18, fontWeight:700,
-                  color:"var(--text-main,#e8eaf0)", fontFamily:"monospace" }} />
+                  color:"var(--text-main,#e8eaf0)", fontFamily:"monospace", minWidth:0 }} />
               {input && <button onClick={() => setInput("")} style={{ paddingRight:14, color:"rgba(200,200,200,0.3)", cursor:"pointer", fontSize:13, background:"none", border:"none" }}>✕</button>}
             </div>
           </div>
@@ -108,7 +124,7 @@ export default function KonverterSection() {
               background:"color-mix(in srgb, var(--color-primary,#f59e0b) 5%, transparent)",
               border:"1px solid color-mix(in srgb, var(--color-primary,#f59e0b) 15%, transparent)" }}>
               {result
-                ? <span className="font-mono-styled font-black" style={{ fontSize:"clamp(1.3rem,4vw,1.8rem)", color:"var(--color-primary,#f59e0b)" }}>{result}</span>
+                ? <span className="font-mono-styled font-black" style={{ fontSize:"clamp(1.1rem,4vw,1.8rem)", color:"var(--color-primary,#f59e0b)", wordBreak:"break-all" }}>{result}</span>
                 : <span style={{ color:"var(--text-main,#e8eaf0)", opacity:.25, fontSize:14 }}>Masukkan nilai di atas…</span>
               }
             </div>
@@ -119,7 +135,7 @@ export default function KonverterSection() {
             <p style={{ fontSize:11, color:"var(--text-main,#e8eaf0)", opacity:.3, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>Nilai Cepat</p>
             <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
               {presets[mode].map(p => (
-                <button key={p} onClick={() => setInput(p)}
+                <button key={p} className="konverter-preset-btn" onClick={() => setInput(p)}
                   style={{ padding:"6px 12px", borderRadius:8, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"monospace",
                     background: input===p ? "color-mix(in srgb, var(--color-primary,#f59e0b) 15%, transparent)" : "transparent",
                     color: input===p ? "var(--color-primary,#f59e0b)" : "var(--text-main,#e8eaf0)",

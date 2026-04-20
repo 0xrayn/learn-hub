@@ -31,7 +31,7 @@ export default function FAQSection() {
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }} className="reveal-children">
           {FAQS.map((faq, i) => (
             <div key={i} className="grad-border" style={{
               border: open === i ? "1px solid rgba(34,197,94,0.25)" : undefined,
@@ -39,10 +39,10 @@ export default function FAQSection() {
             }}>
               <button
                 onClick={() => setOpen(open === i ? null : i)}
-                style={{ width:"100%", textAlign:"left", padding:"16px 20px", display:"flex", alignItems:"flex-start",
-                  justifyContent:"space-between", gap:14, background:"none", border:"none", cursor:"pointer" }}
+                style={{ width:"100%", textAlign:"left", padding:"16px 16px", display:"flex", alignItems:"flex-start",
+                  justifyContent:"space-between", gap:12, background:"none", border:"none", cursor:"pointer" }}
               >
-                <span style={{ fontWeight:600, fontSize:14, lineHeight:1.5, color: open===i ? "#22c55e" : "var(--text-main,#e8eaf0)", opacity: open===i ? 1 : 0.85, transition:"color .2s" }}>
+                <span style={{ fontWeight:600, fontSize:14, lineHeight:1.5, color: open===i ? "#22c55e" : "var(--text-main,#e8eaf0)", opacity: open===i ? 1 : 0.85, transition:"color .2s", flex:1, minWidth:0 }}>
                   {faq.q}
                 </span>
                 <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13,
@@ -53,7 +53,7 @@ export default function FAQSection() {
               </button>
 
               <div className={`faq-body ${open === i ? "open" : ""}`}>
-                <div style={{ padding:"0 20px 18px", fontSize:13, color:"var(--text-main,#e8eaf0)", opacity:.55, lineHeight:1.7,
+                <div style={{ padding:"0 16px 16px", fontSize:13, color:"var(--text-main,#e8eaf0)", opacity:.55, lineHeight:1.7,
                   borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:14 }}>
                   {faq.a}
                 </div>
@@ -63,7 +63,7 @@ export default function FAQSection() {
         </div>
 
         {/* Community CTA */}
-        <div style={{ marginTop:40, padding:"32px 24px", borderRadius:20, textAlign:"center",
+        <div className="reveal-scale" style={{ marginTop:40, padding:"28px 20px", borderRadius:20, textAlign:"center",
           background:"linear-gradient(135deg, rgba(34,197,94,0.07), rgba(6,182,212,0.04))",
           border:"1px solid rgba(34,197,94,0.18)" }}>
           <div style={{ fontSize:36, marginBottom:12 }}>💬</div>
