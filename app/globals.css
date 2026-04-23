@@ -359,7 +359,7 @@ body::after {
   #harga .flex.justify-between span:nth-child(4) { display: none; }
 
   /* Chart header: stack on mobile */
-  #harga .flex-col.sm\\:flex-row { flex-direction: column !important; gap: 10px !important; }
+  #harga .flex-col { flex-direction: column !important; gap: 10px !important; }
 }
 
 @media (max-width: 479px) {

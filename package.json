@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
     "@types/three": "^0.184.0",
     "daisyui": "^5.5.19",
     "next": "16.2.4",

@@ -1,13 +1,30 @@
 "use client";
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { MODULES } from "../../lib/data";
+import { useAuth } from "../../context/AuthContext";
+
+const FREE_MODULES = [1, 2];
 
 export default function EdukasiDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const modul = MODULES.find(m => m.id === Number(id));
+
+  const isFree = FREE_MODULES.includes(Number(id));
+  const isLocked = !isFree && !user;
+
+  // Redirect ke register kalau locked dan sudah selesai loading
+  useEffect(() => {
+    if (!loading && isLocked) {
+      router.replace(`/register?from=edukasi/${id}`);
+    }
+  }, [loading, isLocked, id, router]);
+
   if (!modul) return (
     <>
       <Navbar />
@@ -19,6 +36,40 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
         </div>
       </main>
       <Footer />
+    </>
+  );
+
+  // Show loading while checking auth
+  if (loading) return (
+    <>
+      <Navbar />
+      <main style={{ minHeight: "100vh", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(167,139,250,0.2)", borderTop: "3px solid #a78bfa", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, fontSize: 14 }}>Memeriksa akses...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </main>
+    </>
+  );
+
+  // Show locked state briefly before redirect
+  if (isLocked) return (
+    <>
+      <Navbar />
+      <main style={{ minHeight: "100vh", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
+        <div style={{ textAlign: "center", maxWidth: 380 }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🔒</div>
+          <h2 className="font-black" style={{ fontSize: "1.6rem", color: "var(--text-main,#e8eaf0)", marginBottom: 10 }}>Modul ini Perlu Akun</h2>
+          <p style={{ fontSize: 14, color: "var(--text-main,#e8eaf0)", opacity: 0.5, lineHeight: 1.7, marginBottom: 24 }}>
+            Daftar gratis untuk mengakses <strong style={{ color: "#a78bfa" }}>{modul?.title}</strong> dan semua modul lanjutan.
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <Link href="/register" style={{ padding: "12px 24px", borderRadius: 11, fontSize: 14, fontWeight: 800, background: "linear-gradient(135deg, #a78bfa, #8b5cf6)", color: "#fff", textDecoration: "none" }}>Daftar Gratis</Link>
+            <Link href="/login" style={{ padding: "12px 24px", borderRadius: 11, fontSize: 14, fontWeight: 700, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-main,#e8eaf0)", textDecoration: "none" }}>Masuk</Link>
+          </div>
+        </div>
+      </main>
     </>
   );
 
