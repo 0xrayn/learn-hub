@@ -30,8 +30,19 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Cek role user — admin diarahkan ke /admin, bukan /edukasi
+      if (sessionData?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", sessionData.user.id)
+          .single();
+
+        const redirectTo = profile?.role === "admin" ? "/admin" : next;
+        return NextResponse.redirect(`${origin}${redirectTo}`);
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

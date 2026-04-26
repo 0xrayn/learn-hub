@@ -31,7 +31,7 @@ export default function Navbar() {
 
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, role, signOut } = useAuth();
 
   // Apakah sedang di homepage
   const isHome = pathname === "/";
@@ -216,15 +216,19 @@ export default function Navbar() {
                       <div style={{ fontSize: 10, opacity: 0.38, color: "var(--text-main,#e8eaf0)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
                     </div>
                     {[
+                      ...(role === "admin" ? [{ label: "🛡️ Admin Dashboard", href: "/admin" }] : []),
                       { label: "📚 Progress Belajar", href: "/edukasi" },
                       { label: "🔖 Bookmark Artikel", href: "/artikel" },
+                      { label: "⚙️ Pengaturan Akun", href: "/akun" },
                     ].map(item => (
                       <Link key={item.label} href={item.href} onClick={() => setUserDropOpen(false)} style={{
                         display: "block", padding: "8px 12px", borderRadius: 8, fontSize: 13,
-                        color: "var(--text-main,#e8eaf0)", textDecoration: "none", opacity: 0.65,
+                        color: item.label.startsWith("🛡️") ? accent : "var(--text-main,#e8eaf0)",
+                        textDecoration: "none", opacity: 0.65,
+                        fontWeight: item.label.startsWith("🛡️") ? 700 : 400,
                         transition: "all .15s",
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = item.label.startsWith("🛡️") ? `${accent}12` : "rgba(255,255,255,0.06)"; }}
                       onMouseLeave={e => { e.currentTarget.style.opacity = "0.65"; e.currentTarget.style.background = "transparent"; }}>
                         {item.label}
                       </Link>

@@ -19,7 +19,7 @@ export default function LoginPage() {
     if (!email || !password) { setError("Email dan password wajib diisi."); return; }
     setLoading(true);
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
       if (authError.message.includes("Invalid login")) setError("Email atau password salah.");
@@ -27,8 +27,16 @@ export default function LoginPage() {
       else setError(authError.message);
       return;
     }
-    router.push("/edukasi");
-    router.refresh();
+    // Check role and redirect accordingly
+    if (signInData.user) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", signInData.user.id).single();
+      if (profile?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/edukasi");
+      }
+      router.refresh();
+    }
   };
 
   const handleGoogle = async () => {

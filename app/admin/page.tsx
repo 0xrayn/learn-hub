@@ -19,11 +19,10 @@ interface BookmarkRow { user_id: string; artikel_id: number; created_at: string;
 type Tab = "overview" | "users" | "progress" | "bookmarks";
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  // Gunakan role langsung dari AuthContext — tidak perlu fetch ulang
+  const { user, loading, role } = useAuth();
   const router = useRouter();
 
-  const [role, setRole] = useState<string | null>(null);
-  const [roleLoading, setRoleLoading] = useState(true);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [progress, setProgress] = useState<ProgressRow[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkRow[]>([]);
@@ -31,19 +30,14 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [userSearch, setUserSearch] = useState("");
 
+  // Guard: tunggu sampai auth selesai loading, lalu cek role
   useEffect(() => {
-    if (!user) { setRoleLoading(false); return; }
-    createClient().from("profiles").select("role").eq("id", user.id).single()
-      .then(({ data }) => { setRole(data?.role || "user"); setRoleLoading(false); });
-  }, [user]);
+    if (loading) return;
+    if (!user) { router.replace("/login"); return; }
+    if (role !== null && role !== "admin") { router.replace("/"); }
+  }, [user, loading, role, router]);
 
-  useEffect(() => {
-    if (!loading && !roleLoading) {
-      if (!user) { router.replace("/login"); return; }
-      if (role && role !== "admin") { router.replace("/"); }
-    }
-  }, [user, loading, role, roleLoading, router]);
-
+  // Fetch data hanya jika sudah confirmed admin
   useEffect(() => {
     if (role !== "admin") return;
     const sb = createClient();
@@ -59,8 +53,8 @@ export default function AdminPage() {
     });
   }, [role]);
 
-  const isLoading = loading || roleLoading;
-  if (isLoading) return (
+  // Tampilkan loading spinner selama auth/role masih dicek
+  if (loading || role === null) return (
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -73,8 +67,6 @@ export default function AdminPage() {
     </>
   );
   if (role !== "admin") return null;
-
-  // ── Computed stats ──
   const regularUsers = users.filter(u => u.role === "user");
   const completedProgress = progress.filter(p => p.completed);
   const activeUserIds = new Set([...progress.map(p => p.user_id), ...bookmarks.map(b => b.user_id)]);
