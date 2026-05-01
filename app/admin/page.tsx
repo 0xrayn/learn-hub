@@ -12,7 +12,8 @@ interface BookmarkRow { user_id: string; artikel_id: number; created_at: string;
 
 // DB article/module types
 interface DbArticle { id: number; title: string; excerpt: string; content: string; category: string; cat_color: string; author: string; image_url: string; read_time: string; published: boolean; created_at: string; }
-interface DbLesson { id?: number; title: string; duration: string; sort_order: number; }
+interface DbLesson { id?: number; title: string; duration: string; sort_order: number; video_url?: string; video_type?: string; content?: string; is_free?: boolean; }
+interface DbQuizQuestion { id?: number; lesson_id?: number; sort_order: number; question: string; options: string[]; answer: number; explanation: string; }
 interface DbModule { id: number; num: string; icon: string; title: string; description: string; long_desc: string; duration: string; level: string; accent: string; level_color: string; published: boolean; sort_order: number; lessons?: DbLesson[]; }
 
 type Tab = "overview" | "users" | "progress" | "bookmarks" | "konten";
@@ -258,14 +259,44 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
 function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose: () => void; onSaved: () => void; }) {
   const isNew = !mod;
   const [form, setForm] = useState<Partial<DbModule>>(mod || { num: "01", icon: "₿", title: "", description: "", long_desc: "", duration: "30 mnt", level: "Pemula", accent: "#f59e0b", level_color: "#22c55e", published: true, sort_order: 0 });
-  const [lessons, setLessons] = useState<DbLesson[]>(mod?.lessons || [{ title: "", duration: "5 mnt", sort_order: 0 }]);
+  const [lessons, setLessons] = useState<DbLesson[]>(mod?.lessons || [{ title: "", duration: "5 mnt", sort_order: 0, video_url: "", video_type: "youtube", content: "", is_free: false }]);
+  const [expandedLesson, setExpandedLesson] = useState<number | null>(null);
+  const [lessonTab, setLessonTab] = useState<Record<number, "konten" | "quiz">>({});
+  // quizzes per lesson index
+  const [quizzes, setQuizzes] = useState<Record<number, DbQuizQuestion[]>>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
   const setF = (k: keyof DbModule, v: any) => setForm((f) => ({ ...f, [k]: v }));
-  const setLesson = (i: number, k: keyof DbLesson, v: string) => setLessons((ls) => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
-  const addLesson = () => setLessons((ls) => [...ls, { title: "", duration: "5 mnt", sort_order: ls.length }]);
-  const removeLesson = (i: number) => setLessons((ls) => ls.filter((_, idx) => idx !== i));
+  const setLesson = (i: number, k: string, v: string | boolean) => setLessons((ls) => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
+  const addLesson = () => setLessons((ls) => [...ls, { title: "", duration: "5 mnt", sort_order: ls.length, video_url: "", video_type: "youtube", content: "", is_free: false }]);
+  const removeLesson = (i: number) => { setLessons((ls) => ls.filter((_, idx) => idx !== i)); setExpandedLesson(null); };
+
+  // Quiz helpers
+  const getQuizzes = (i: number): DbQuizQuestion[] => quizzes[i] || [];
+  const addQuiz = (i: number) => setQuizzes(q => ({ ...q, [i]: [...getQuizzes(i), { sort_order: getQuizzes(i).length, question: "", options: ["", "", "", ""], answer: 0, explanation: "" }] }));
+  const removeQuiz = (lessonIdx: number, qIdx: number) => setQuizzes(q => ({ ...q, [lessonIdx]: getQuizzes(lessonIdx).filter((_, j) => j !== qIdx) }));
+  const setQuiz = (lessonIdx: number, qIdx: number, k: string, v: any) => setQuizzes(q => ({ ...q, [lessonIdx]: getQuizzes(lessonIdx).map((item, j) => j === qIdx ? { ...item, [k]: v } : item) }));
+  const setQuizOption = (lessonIdx: number, qIdx: number, optIdx: number, v: string) => setQuizzes(q => ({ ...q, [lessonIdx]: getQuizzes(lessonIdx).map((item, j) => j === qIdx ? { ...item, options: item.options.map((o, oi) => oi === optIdx ? v : o) } : item) }));
+
+  // Load existing quizzes for edit mode
+  useEffect(() => {
+    if (!mod?.lessons) return;
+    const sb = createClient();
+    const lessonIds = (mod.lessons as any[]).filter(l => l.id).map(l => l.id);
+    if (!lessonIds.length) return;
+    sb.from("lesson_quizzes").select("*").in("lesson_id", lessonIds).order("sort_order", { ascending: true }).then(({ data }) => {
+      if (!data) return;
+      const byLesson: Record<number, DbQuizQuestion[]> = {};
+      data.forEach((q: any) => {
+        const idx = (mod.lessons as any[]).findIndex(l => l.id === q.lesson_id);
+        if (idx < 0) return;
+        if (!byLesson[idx]) byLesson[idx] = [];
+        byLesson[idx].push({ id: q.id, lesson_id: q.lesson_id, sort_order: q.sort_order, question: q.question, options: q.options, answer: q.answer, explanation: q.explanation });
+      });
+      setQuizzes(byLesson);
+    });
+  }, []);
 
   const save = async () => {
     if (!form.title?.trim()) { setErr("Judul modul wajib diisi."); return; }
@@ -275,20 +306,38 @@ function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose:
     const sb = createClient();
     const payload = { num: form.num || "01", icon: form.icon || "₿", title: form.title, description: form.description || "", long_desc: form.long_desc || "", duration: form.duration || "30 mnt", level: form.level || "Pemula", accent: form.accent || "#f59e0b", level_color: form.level_color || "#22c55e", published: form.published ?? true, sort_order: form.sort_order || 0, updated_at: new Date().toISOString() };
 
+    let savedLessonIds: number[] = [];
+
     if (isNew) {
       const { data, error } = await sb.from("modules").insert(payload).select("id").single();
       if (error || !data) { setSaving(false); setErr(error?.message || "Gagal membuat modul."); return; }
       const moduleId = data.id;
-      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: moduleId, title: l.title, duration: l.duration || "5 mnt", sort_order: idx }));
-      await sb.from("module_lessons").insert(lessonsPayload);
+      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: moduleId, title: l.title, duration: l.duration || "5 mnt", sort_order: idx, video_url: l.video_url || null, video_type: l.video_type || "youtube", content: l.content || null, is_free: l.is_free || false }));
+      const { data: insertedLessons } = await sb.from("module_lessons").insert(lessonsPayload).select("id");
+      savedLessonIds = (insertedLessons || []).map((l: any) => l.id);
     } else {
       const { error } = await sb.from("modules").update(payload).eq("id", mod!.id);
       if (error) { setSaving(false); setErr(error.message); return; }
-      // Replace lessons
       await sb.from("module_lessons").delete().eq("module_id", mod!.id);
-      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: mod!.id, title: l.title, duration: l.duration || "5 mnt", sort_order: idx }));
-      if (lessonsPayload.length > 0) await sb.from("module_lessons").insert(lessonsPayload);
+      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: mod!.id, title: l.title, duration: l.duration || "5 mnt", sort_order: idx, video_url: l.video_url || null, video_type: l.video_type || "youtube", content: l.content || null, is_free: l.is_free || false }));
+      if (lessonsPayload.length > 0) {
+        const { data: insertedLessons } = await sb.from("module_lessons").insert(lessonsPayload).select("id");
+        savedLessonIds = (insertedLessons || []).map((l: any) => l.id);
+      }
     }
+
+    // Save quizzes for each lesson
+    for (let i = 0; i < validLessons.length; i++) {
+      const lessonId = savedLessonIds[i];
+      if (!lessonId) continue;
+      const lessonQuizzes = getQuizzes(i).filter(q => q.question.trim());
+      if (lessonQuizzes.length === 0) continue;
+      // Delete old quizzes for this lesson then insert new
+      await sb.from("lesson_quizzes").delete().eq("lesson_id", lessonId);
+      const quizPayload = lessonQuizzes.map((q, qi) => ({ lesson_id: lessonId, sort_order: qi, question: q.question, options: q.options, answer: q.answer, explanation: q.explanation || "" }));
+      await sb.from("lesson_quizzes").insert(quizPayload);
+    }
+
     setSaving(false);
     onSaved();
     onClose();
@@ -299,48 +348,187 @@ function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose:
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: "#0e0f1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 680, maxHeight: "90vh", overflowY: "auto" }}>
+      <div style={{ background: "#0e0f1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, color: "#f0f0f5", margin: 0 }}>{isNew ? "✎ Buat Modul Baru" : "✎ Edit Modul"}</h2>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#f0f0f5", margin: 0 }}>{isNew ? "✎ Buat Modul Baru" : "✎ Edit Modul"}</h2>
+            <p style={{ fontSize: 11, opacity: 0.35, margin: "4px 0 0" }}>Isi info modul, tambah pelajaran, lalu tambah quiz per pelajaran</p>
+          </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 20, cursor: "pointer" }}>✕</button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr", gap: 12 }}>
-            <div><label style={lbl}>Nomor</label><input value={form.num || ""} onChange={(e) => setF("num", e.target.value)} style={inp} placeholder="01" /></div>
-            <div><label style={lbl}>Icon</label><input value={form.icon || ""} onChange={(e) => setF("icon", e.target.value)} style={{ ...inp, textAlign: "center", fontSize: 18 }} /></div>
-            <div><label style={lbl}>Judul Modul *</label><input value={form.title || ""} onChange={(e) => setF("title", e.target.value)} style={inp} placeholder="Nama modul..." /></div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={lbl}>Level</label>
-              <select value={form.level || "Pemula"} onChange={(e) => setF("level", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
-                {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div><label style={lbl}>Durasi</label><input value={form.duration || ""} onChange={(e) => setF("duration", e.target.value)} style={inp} placeholder="30 mnt" /></div>
-            <div><label style={lbl}>Urutan</label><input type="number" value={form.sort_order ?? 0} onChange={(e) => setF("sort_order", parseInt(e.target.value) || 0)} style={inp} /></div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div><label style={lbl}>Warna Aksen</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.accent || "#f59e0b"} onChange={(e) => setF("accent", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }} /><input value={form.accent || ""} onChange={(e) => setF("accent", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
-            <div><label style={lbl}>Warna Level</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.level_color || "#22c55e"} onChange={(e) => setF("level_color", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }} /><input value={form.level_color || ""} onChange={(e) => setF("level_color", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
-          </div>
-          <div><label style={lbl}>Deskripsi Singkat</label><textarea value={form.description || ""} onChange={(e) => setF("description", e.target.value)} style={{ ...inp, minHeight: 60, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Deskripsi singkat modul..." /></div>
-          <div><label style={lbl}>Deskripsi Panjang</label><textarea value={form.long_desc || ""} onChange={(e) => setF("long_desc", e.target.value)} style={{ ...inp, minHeight: 80, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Penjelasan lebih lengkap..." /></div>
 
-          {/* Lessons */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <label style={{ ...lbl, marginBottom: 0 }}>Daftar Pelajaran *</label>
-              <button onClick={addLesson} style={{ padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${GOLD}40`, background: `${GOLD}12`, color: GOLD, cursor: "pointer" }}>+ Tambah</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {lessons.map((l, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 100px 36px", gap: 8, alignItems: "center" }}>
-                  <input value={l.title} onChange={(e) => setLesson(i, "title", e.target.value)} style={{ ...inp, padding: "9px 12px" }} placeholder={`Pelajaran ${i + 1}...`} />
-                  <input value={l.duration} onChange={(e) => setLesson(i, "duration", e.target.value)} style={{ ...inp, padding: "9px 12px" }} placeholder="5 mnt" />
-                  <button onClick={() => removeLesson(i)} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", fontSize: 14 }}>✕</button>
+        {/* Step pills */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+          {["1. Info Modul", "2. Pelajaran & Konten", "3. Quiz per Pelajaran"].map((s, i) => (
+            <div key={i} style={{ padding: "4px 12px", borderRadius: 99, fontSize: 10, fontWeight: 700, background: `${GOLD}12`, border: `1px solid ${GOLD}25`, color: GOLD }}>{s}</div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* ── STEP 1: Info Modul ── */}
+          <div style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: GOLD, marginBottom: 12, letterSpacing: "0.05em" }}>① INFO MODUL</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr", gap: 12 }}>
+                <div><label style={lbl}>Nomor</label><input value={form.num || ""} onChange={(e) => setF("num", e.target.value)} style={inp} placeholder="01" /></div>
+                <div><label style={lbl}>Icon</label><input value={form.icon || ""} onChange={(e) => setF("icon", e.target.value)} style={{ ...inp, textAlign: "center", fontSize: 18 }} /></div>
+                <div><label style={lbl}>Judul Modul *</label><input value={form.title || ""} onChange={(e) => setF("title", e.target.value)} style={inp} placeholder="Nama modul..." /></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={lbl}>Level</label>
+                  <select value={form.level || "Pemula"} onChange={(e) => setF("level", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
+                    {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
                 </div>
-              ))}
+                <div><label style={lbl}>Durasi Total</label><input value={form.duration || ""} onChange={(e) => setF("duration", e.target.value)} style={inp} placeholder="30 mnt" /></div>
+                <div><label style={lbl}>Urutan Tampil</label><input type="number" value={form.sort_order ?? 0} onChange={(e) => setF("sort_order", parseInt(e.target.value) || 0)} style={inp} /></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div><label style={lbl}>Warna Aksen</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.accent || "#f59e0b"} onChange={(e) => setF("accent", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }} /><input value={form.accent || ""} onChange={(e) => setF("accent", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
+                <div><label style={lbl}>Warna Level</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.level_color || "#22c55e"} onChange={(e) => setF("level_color", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer", background: "transparent" }} /><input value={form.level_color || ""} onChange={(e) => setF("level_color", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
+              </div>
+              <div><label style={lbl}>Deskripsi Singkat</label><textarea value={form.description || ""} onChange={(e) => setF("description", e.target.value)} style={{ ...inp, minHeight: 55, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Deskripsi singkat modul..." /></div>
+              <div><label style={lbl}>Deskripsi Panjang</label><textarea value={form.long_desc || ""} onChange={(e) => setF("long_desc", e.target.value)} style={{ ...inp, minHeight: 70, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Penjelasan lebih lengkap..." /></div>
+            </div>
+          </div>
+
+          {/* ── STEP 2 & 3: Pelajaran + Quiz ── */}
+          <div style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: GOLD, letterSpacing: "0.05em" }}>② PELAJARAN & QUIZ</div>
+              <button onClick={addLesson} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: `1px solid ${GOLD}40`, background: `${GOLD}12`, color: GOLD, cursor: "pointer" }}>+ Tambah Pelajaran</button>
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.35, marginBottom: 12, color: "#f0f0f5" }}>Klik pelajaran untuk expand, lalu pilih tab Konten (materi/video) atau Quiz (soal pilihan ganda)</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {lessons.map((l, i) => {
+                const qList = getQuizzes(i);
+                const tab = lessonTab[i] || "konten";
+                const isExpanded = expandedLesson === i;
+                return (
+                  <div key={i} style={{ borderRadius: 12, border: `1px solid ${isExpanded ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.09)"}`, background: isExpanded ? "rgba(245,158,11,0.03)" : "rgba(255,255,255,0.02)", overflow: "hidden", transition: "border-color .2s" }}>
+                    {/* Header row */}
+                    <div style={{ display: "flex", gap: 8, padding: "10px 12px", alignItems: "center" }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 8, background: isExpanded ? `${GOLD}20` : "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: isExpanded ? GOLD : "rgba(255,255,255,0.3)", flexShrink: 0 }}>{i + 1}</div>
+                      <input value={l.title} onChange={(e) => setLesson(i, "title", e.target.value)} style={{ ...inp, flex: 1, padding: "8px 12px" }} placeholder={`Judul pelajaran ${i + 1}...`} onClick={e => e.stopPropagation()} />
+                      <input value={l.duration} onChange={(e) => setLesson(i, "duration", e.target.value)} style={{ ...inp, width: 85, padding: "8px 12px", flexShrink: 0 }} placeholder="8 mnt" onClick={e => e.stopPropagation()} />
+                      {qList.length > 0 && <div style={{ fontSize: 10, padding: "3px 8px", borderRadius: 99, background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa", fontWeight: 700, flexShrink: 0 }}>📝 {qList.length} quiz</div>}
+                      <button onClick={() => setExpandedLesson(isExpanded ? null : i)} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid rgba(245,158,11,0.3)`, background: isExpanded ? `${GOLD}20` : `${GOLD}08`, color: GOLD, cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {isExpanded ? "▲ Tutup" : "▼ Edit"}
+                      </button>
+                      <button onClick={() => removeLesson(i)} style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>✕</button>
+                    </div>
+
+                    {/* Expandable */}
+                    {isExpanded && (
+                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        {/* Sub-tab switcher */}
+                        <div style={{ display: "flex", gap: 0, padding: "10px 12px 0" }}>
+                          {(["konten", "quiz"] as const).map(t => (
+                            <button key={t} onClick={() => setLessonTab(lt => ({ ...lt, [i]: t }))} style={{ padding: "7px 16px", fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none", borderBottom: tab === t ? `2px solid ${GOLD}` : "2px solid transparent", background: "transparent", color: tab === t ? GOLD : "rgba(255,255,255,0.35)", transition: "all .15s" }}>
+                              {t === "konten" ? "🎬 Konten & Video" : `📝 Quiz (${getQuizzes(i).length})`}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Tab: Konten */}
+                        {tab === "konten" && (
+                          <div style={{ padding: "12px 12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div>
+                              <label style={lbl}>Tipe Video</label>
+                              <select value={l.video_type || "youtube"} onChange={(e) => setLesson(i, "video_type", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
+                                <option value="youtube">▶ YouTube</option>
+                                <option value="vimeo">▶ Vimeo</option>
+                                <option value="url">▶ URL Langsung (MP4, dll)</option>
+                                <option value="drive">▶ Google Drive</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style={lbl}>URL Video</label>
+                              <input value={l.video_url || ""} onChange={(e) => setLesson(i, "video_url", e.target.value)} style={inp} placeholder="https://youtu.be/abc123 atau https://vimeo.com/123456" />
+                              <div style={{ fontSize: 10, opacity: 0.3, marginTop: 4, color: "#f0f0f5" }}>Kosongkan jika belum ada video — konten tetap bisa ditambah di bawah</div>
+                            </div>
+                            <div>
+                              <label style={lbl}>Materi Teks (Markdown)</label>
+                              <textarea value={l.content || ""} onChange={(e) => setLesson(i, "content", e.target.value)} style={{ ...inp, minHeight: 100, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }} placeholder={"## Judul Materi\n\nTulis penjelasan di sini...\n\n- Poin 1\n- Poin 2\n\n**Tebal** dan *miring* didukung."} />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <input type="checkbox" id={`free-${i}`} checked={l.is_free || false} onChange={(e) => setLesson(i, "is_free", e.target.checked)} style={{ width: 14, height: 14, cursor: "pointer" }} />
+                              <label htmlFor={`free-${i}`} style={{ ...lbl, marginBottom: 0, cursor: "pointer", opacity: 0.5 }}>🎁 Gratis (bisa diakses tanpa login)</label>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tab: Quiz Builder */}
+                        {tab === "quiz" && (
+                          <div style={{ padding: "12px 12px 14px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: "#f0f0f5" }}>Quiz untuk: <span style={{ color: "#a78bfa" }}>{l.title || `Pelajaran ${i + 1}`}</span></div>
+                                <div style={{ fontSize: 10, opacity: 0.35, marginTop: 2 }}>Pilihan ganda 4 opsi. Klik ● untuk set jawaban benar.</div>
+                              </div>
+                              <button onClick={() => addQuiz(i)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.08)", color: "#a78bfa", cursor: "pointer" }}>+ Soal</button>
+                            </div>
+
+                            {getQuizzes(i).length === 0 ? (
+                              <div style={{ padding: "28px 20px", textAlign: "center", border: "1px dashed rgba(167,139,250,0.2)", borderRadius: 10 }}>
+                                <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+                                <div style={{ fontSize: 12, opacity: 0.4, color: "#f0f0f5" }}>Belum ada soal. Klik "+ Soal" untuk tambah.</div>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                {getQuizzes(i).map((q, qi) => (
+                                  <div key={qi} style={{ padding: "14px", borderRadius: 10, border: "1px solid rgba(167,139,250,0.15)", background: "rgba(167,139,250,0.04)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                                      <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", opacity: 0.7 }}>SOAL {qi + 1}</div>
+                                      <button onClick={() => removeQuiz(i, qi)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 13, opacity: 0.6, padding: 0 }}>✕</button>
+                                    </div>
+                                    <input
+                                      value={q.question}
+                                      onChange={e => setQuiz(i, qi, "question", e.target.value)}
+                                      style={{ ...inp, marginBottom: 10 }}
+                                      placeholder="Tulis pertanyaan di sini..."
+                                    />
+                                    <div style={{ fontSize: 9, fontWeight: 700, color: "#f0f0f5", opacity: 0.3, letterSpacing: "0.08em", marginBottom: 7 }}>PILIHAN JAWABAN — Klik ● untuk tandai yang benar</div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                      {q.options.map((opt, oi) => (
+                                        <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                          <button
+                                            onClick={() => setQuiz(i, qi, "answer", oi)}
+                                            title="Tandai sebagai jawaban benar"
+                                            style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${q.answer === oi ? "#22c55e" : "rgba(255,255,255,0.15)"}`, background: q.answer === oi ? "#22c55e" : "transparent", color: q.answer === oi ? "#000" : "rgba(255,255,255,0.25)", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, flexShrink: 0 }}>
+                                            {q.answer === oi ? "✓" : String.fromCharCode(65 + oi)}
+                                          </button>
+                                          <input
+                                            value={opt}
+                                            onChange={e => setQuizOption(i, qi, oi, e.target.value)}
+                                            style={{ ...inp, flex: 1, padding: "8px 12px", border: `1px solid ${q.answer === oi ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`, background: q.answer === oi ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.04)" }}
+                                            placeholder={`Pilihan ${String.fromCharCode(65 + oi)}...`}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div style={{ marginTop: 10 }}>
+                                      <label style={lbl}>Penjelasan Jawaban (ditampilkan setelah user menjawab)</label>
+                                      <input
+                                        value={q.explanation}
+                                        onChange={e => setQuiz(i, qi, "explanation", e.target.value)}
+                                        style={inp}
+                                        placeholder="Contoh: Jawaban B benar karena..."
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

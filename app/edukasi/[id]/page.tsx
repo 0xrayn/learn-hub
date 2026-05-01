@@ -225,24 +225,39 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 40 }}>
               {modul.lessons.map((lesson, i) => {
                 const done = completedLessons.has(i);
-                return (
+                const isFree = lesson.isFree || i < 2;
+                const canAccess = isFree || !!user;
+                const hasContent = !!(lesson.videoUrl || lesson.content);
+
+                const cardInner = (
                   <div
-                    key={i}
                     className="grad-border"
-                    onClick={() => user && toggleLesson(i)}
-                    style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: user ? "pointer" : "default", transition: "opacity .15s" }}
+                    style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: canAccess ? "pointer" : "default", transition: "all .15s" }}
+                    onClick={!hasContent && canAccess ? () => toggleLesson(i) : undefined}
                   >
                     <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: done ? "rgba(34,197,94,0.15)" : `color-mix(in srgb, ${modul.accent} 15%, transparent)`, border: done ? "1px solid rgba(34,197,94,0.3)" : `1px solid ${modul.accent}40`, color: done ? "#22c55e" : modul.accent, transition: "all .2s" }}>
-                      {done ? "✓" : i + 1}
+                      {!canAccess ? "🔒" : done ? "✓" : i + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-main,#e8eaf0)" }}>{lesson.title}</div>
-                      <div className="font-mono-styled" style={{ fontSize: 11, opacity: 0.4, color: "var(--text-main,#e8eaf0)", marginTop: 2 }}>⏱ {lesson.dur}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-main,#e8eaf0)" }}>{lesson.title}</span>
+                        {lesson.videoUrl && <span style={{ fontSize: 10, background: `${modul.accent}20`, color: modul.accent, padding: "1px 7px", borderRadius: 20, fontWeight: 700 }}>▶ Video</span>}
+                        {isFree && !user && <span style={{ fontSize: 10, background: "rgba(34,197,94,0.1)", color: "#22c55e", padding: "1px 7px", borderRadius: 20, fontWeight: 700 }}>Gratis</span>}
+                      </div>
+                      <div className="font-mono-styled" style={{ fontSize: 11, opacity: 0.4, color: "var(--text-main,#e8eaf0)", marginTop: 2 }}>{"⏱"} {lesson.dur}</div>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, flexShrink: 0, background: done ? "rgba(34,197,94,0.1)" : `color-mix(in srgb, ${modul.accent} 10%, transparent)`, color: done ? "#22c55e" : modul.accent, transition: "all .2s" }}>
-                      {done ? "✅ Selesai" : user ? "Tandai Selesai" : "—"}
+                      {done ? "✅ Selesai" : hasContent && canAccess ? "Mulai →" : user && !hasContent ? "Tandai ✓" : "—"}
                     </span>
                   </div>
+                );
+
+                return (hasContent && canAccess && lesson.id) ? (
+                  <Link key={i} href={`/edukasi/${modul.id}/lesson/${lesson.id}`} style={{ textDecoration: "none" }}>
+                    {cardInner}
+                  </Link>
+                ) : (
+                  <div key={i}>{cardInner}</div>
                 );
               })}
             </div>

@@ -5,11 +5,206 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { createClient } from "../lib/supabase";
 
-interface UserProfile {
-  id: string; name: string | null; role: string; created_at: string; email?: string;
+// ── Reuse modal types from admin ──────────────────────────────────
+const CATS = ["Pemula", "Teknologi", "Investasi", "Keamanan", "Sejarah", "Mining", "Lainnya"];
+const LEVELS = ["Pemula", "Menengah", "Lanjutan"];
+const CAT_COLORS: Record<string, string> = { Pemula: "#22c55e", Teknologi: "#06b6d4", Investasi: "#f59e0b", Keamanan: "#a78bfa", Sejarah: "#fb923c", Mining: "#ef4444", Lainnya: "#8b5cf6" };
+
+interface DbArticle { id: number; title: string; excerpt: string; content: string; category: string; cat_color: string; author: string; image_url: string; read_time: string; published: boolean; created_at: string; }
+interface DbLesson { id?: number; title: string; duration: string; sort_order: number; video_url?: string; video_type?: string; content?: string; is_free?: boolean; }
+interface DbModule { id: number; num: string; icon: string; title: string; description: string; long_desc: string; duration: string; level: string; accent: string; level_color: string; published: boolean; sort_order: number; lessons?: DbLesson[]; }
+interface DbQuizQuestion { id?: number; lesson_id?: number; sort_order: number; question: string; options: string[]; answer: number; explanation: string; }
+
+// ── ArticleModal ──────────────────────────────────────────────────
+function ArticleModal({ article, onClose, onSaved, GOLD }: { article: DbArticle | null; onClose: () => void; onSaved: () => void; GOLD: string }) {
+  const isNew = !article;
+  const [form, setForm] = useState<Partial<DbArticle>>(article || { title: "", excerpt: "", content: "", category: "Pemula", cat_color: "#22c55e", author: "Admin", image_url: "", read_time: "5 mnt", published: true });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [imgMode, setImgMode] = useState<"url" | "upload">("url");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const set = (k: keyof DbArticle, v: any) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setErr("Ukuran file max 5MB."); return; }
+    setUploading(true); setErr("");
+    const sb = createClient();
+    const ext = file.name.split(".").pop();
+    const filename = `artikel-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from("artikel-images").upload(filename, file, { cacheControl: "3600", upsert: false });
+    if (error) { setErr("Upload gagal: " + error.message); setUploading(false); return; }
+    const { data: urlData } = sb.storage.from("artikel-images").getPublicUrl(filename);
+    set("image_url", urlData.publicUrl); setUploading(false);
+  };
+
+  const save = async () => {
+    if (!form.title?.trim()) { setErr("Judul wajib diisi."); return; }
+    setSaving(true); setErr("");
+    const sb = createClient();
+    const payload = { title: form.title, excerpt: form.excerpt || "", content: form.content || "", category: form.category || "Pemula", cat_color: CAT_COLORS[form.category || "Pemula"] || "#22c55e", author: form.author || "Admin", image_url: form.image_url || "", read_time: form.read_time || "5 mnt", published: form.published ?? true, updated_at: new Date().toISOString() };
+    const { error } = isNew ? await sb.from("articles").insert(payload) : await sb.from("articles").update(payload).eq("id", article!.id);
+    setSaving(false);
+    if (error) setErr(error.message);
+    else { onSaved(); onClose(); }
+  };
+
+  const inp: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f5", boxSizing: "border-box" };
+  const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: "#f0f0f5", opacity: 0.4, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#0e0f1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 680, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: "#f0f0f5", margin: 0 }}>{isNew ? "✎ Buat Artikel Baru" : "✎ Edit Artikel"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 20, cursor: "pointer" }}>✕</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={lbl}>Judul *</label><input value={form.title || ""} onChange={e => set("title", e.target.value)} style={inp} placeholder="Judul artikel..." /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>Kategori</label><select value={form.category || "Pemula"} onChange={e => set("category", e.target.value)} style={{ ...inp, cursor: "pointer" }}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div><label style={lbl}>Waktu Baca</label><input value={form.read_time || ""} onChange={e => set("read_time", e.target.value)} style={inp} placeholder="5 mnt" /></div>
+          </div>
+          <div><label style={lbl}>Penulis</label><input value={form.author || ""} onChange={e => set("author", e.target.value)} style={inp} placeholder="Nama penulis" /></div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={lbl}>Gambar Artikel</label>
+              <div style={{ display: "flex", gap: 4 }}>
+                {(["url", "upload"] as const).map(m => <button key={m} onClick={() => setImgMode(m)} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", border: `1px solid ${imgMode === m ? GOLD + "60" : "rgba(255,255,255,0.1)"}`, background: imgMode === m ? GOLD + "15" : "transparent", color: imgMode === m ? GOLD : "rgba(255,255,255,0.4)" }}>{m === "url" ? "🔗 URL" : "📁 Upload"}</button>)}
+              </div>
+            </div>
+            {imgMode === "url" ? <input value={form.image_url || ""} onChange={e => set("image_url", e.target.value)} style={inp} placeholder="https://images.unsplash.com/..." /> : (
+              <div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+                <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ width: "100%", padding: "14px", borderRadius: 9, border: "1px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)", color: uploading ? GOLD : "rgba(255,255,255,0.4)", fontSize: 13, cursor: uploading ? "not-allowed" : "pointer" }}>
+                  {uploading ? "⏳ Mengupload..." : "📁 Klik untuk pilih file (max 5MB)"}
+                </button>
+              </div>
+            )}
+            {form.image_url && <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", height: 100 }}><img src={form.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} /></div>}
+          </div>
+          <div><label style={lbl}>Excerpt / Ringkasan</label><textarea value={form.excerpt || ""} onChange={e => set("excerpt", e.target.value)} style={{ ...inp, minHeight: 70, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Ringkasan singkat..." /></div>
+          <div><label style={lbl}>Konten (Markdown)</label><textarea value={form.content || ""} onChange={e => set("content", e.target.value)} style={{ ...inp, minHeight: 200, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.7 }} placeholder="# Judul&#10;&#10;Tulis konten..." /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="checkbox" id="pub-sa" checked={form.published ?? true} onChange={e => set("published", e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} /><label htmlFor="pub-sa" style={{ ...lbl, marginBottom: 0, cursor: "pointer" }}>Tampilkan (Published)</label></div>
+          {err && <div style={{ padding: "10px 14px", borderRadius: 9, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "#f87171", fontSize: 13 }}>{err}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+            <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Batal</button>
+            <button onClick={save} disabled={saving || uploading} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: saving ? "#a78bfa50" : "linear-gradient(135deg,#a78bfa,#7c3aed)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Menyimpan..." : isNew ? "Buat Artikel" : "Simpan"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ModuleModal (simplified, no quiz) ────────────────────────────
+function ModuleModal({ mod, onClose, onSaved, GOLD }: { mod: DbModule | null; onClose: () => void; onSaved: () => void; GOLD: string }) {
+  const isNew = !mod;
+  const [form, setForm] = useState<Partial<DbModule>>(mod || { num: "01", icon: "₿", title: "", description: "", long_desc: "", duration: "30 mnt", level: "Pemula", accent: "#f59e0b", level_color: "#22c55e", published: true, sort_order: 0 });
+  const [lessons, setLessons] = useState<DbLesson[]>(mod?.lessons || [{ title: "", duration: "5 mnt", sort_order: 0, video_url: "", video_type: "youtube", content: "", is_free: false }]);
+  const [expandedLesson, setExpandedLesson] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const setF = (k: keyof DbModule, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const setLesson = (i: number, k: string, v: any) => setLessons(ls => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
+  const addLesson = () => setLessons(ls => [...ls, { title: "", duration: "5 mnt", sort_order: ls.length, video_url: "", video_type: "youtube", content: "", is_free: false }]);
+  const removeLesson = (i: number) => { setLessons(ls => ls.filter((_, idx) => idx !== i)); setExpandedLesson(null); };
+
+  const save = async () => {
+    if (!form.title?.trim()) { setErr("Judul modul wajib diisi."); return; }
+    const validLessons = lessons.filter(l => l.title.trim());
+    if (!validLessons.length) { setErr("Tambahkan minimal 1 pelajaran."); return; }
+    setSaving(true); setErr("");
+    const sb = createClient();
+    const payload = { num: form.num || "01", icon: form.icon || "₿", title: form.title, description: form.description || "", long_desc: form.long_desc || "", duration: form.duration || "30 mnt", level: form.level || "Pemula", accent: form.accent || "#f59e0b", level_color: form.level_color || "#22c55e", published: form.published ?? true, sort_order: form.sort_order || 0, updated_at: new Date().toISOString() };
+    if (isNew) {
+      const { data, error } = await sb.from("modules").insert(payload).select("id").single();
+      if (error || !data) { setSaving(false); setErr(error?.message || "Gagal."); return; }
+      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: data.id, title: l.title, duration: l.duration || "5 mnt", sort_order: idx, video_url: l.video_url || null, video_type: l.video_type || "youtube", content: l.content || null, is_free: l.is_free || false }));
+      await sb.from("module_lessons").insert(lessonsPayload);
+    } else {
+      const { error } = await sb.from("modules").update(payload).eq("id", mod!.id);
+      if (error) { setSaving(false); setErr(error.message); return; }
+      await sb.from("module_lessons").delete().eq("module_id", mod!.id);
+      const lessonsPayload = validLessons.map((l, idx) => ({ module_id: mod!.id, title: l.title, duration: l.duration || "5 mnt", sort_order: idx, video_url: l.video_url || null, video_type: l.video_type || "youtube", content: l.content || null, is_free: l.is_free || false }));
+      if (lessonsPayload.length > 0) await sb.from("module_lessons").insert(lessonsPayload);
+    }
+    setSaving(false); onSaved(); onClose();
+  };
+
+  const inp: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f5", boxSizing: "border-box" };
+  const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: "#f0f0f5", opacity: 0.4, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#0e0f1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <div><h2 style={{ fontSize: 16, fontWeight: 900, color: "#f0f0f5", margin: 0 }}>{isNew ? "✎ Buat Modul Baru" : "✎ Edit Modul"}</h2><p style={{ fontSize: 11, opacity: 0.35, margin: "4px 0 0" }}>Untuk tambah quiz per pelajaran, gunakan Admin Dashboard</p></div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 20, cursor: "pointer" }}>✕</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr", gap: 12 }}>
+            <div><label style={lbl}>Nomor</label><input value={form.num || ""} onChange={e => setF("num", e.target.value)} style={inp} placeholder="01" /></div>
+            <div><label style={lbl}>Icon</label><input value={form.icon || ""} onChange={e => setF("icon", e.target.value)} style={{ ...inp, textAlign: "center", fontSize: 18 }} /></div>
+            <div><label style={lbl}>Judul *</label><input value={form.title || ""} onChange={e => setF("title", e.target.value)} style={inp} placeholder="Nama modul..." /></div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>Level</label><select value={form.level || "Pemula"} onChange={e => setF("level", e.target.value)} style={{ ...inp, cursor: "pointer" }}>{LEVELS.map(l => <option key={l} value={l}>{l}</option>)}</select></div>
+            <div><label style={lbl}>Durasi</label><input value={form.duration || ""} onChange={e => setF("duration", e.target.value)} style={inp} placeholder="30 mnt" /></div>
+            <div><label style={lbl}>Urutan</label><input type="number" value={form.sort_order ?? 0} onChange={e => setF("sort_order", parseInt(e.target.value) || 0)} style={inp} /></div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>Warna Aksen</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.accent || "#f59e0b"} onChange={e => setF("accent", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer" }} /><input value={form.accent || ""} onChange={e => setF("accent", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
+            <div><label style={lbl}>Warna Level</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={form.level_color || "#22c55e"} onChange={e => setF("level_color", e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: "none", cursor: "pointer" }} /><input value={form.level_color || ""} onChange={e => setF("level_color", e.target.value)} style={{ ...inp, flex: 1 }} /></div></div>
+          </div>
+          <div><label style={lbl}>Deskripsi Singkat</label><textarea value={form.description || ""} onChange={e => setF("description", e.target.value)} style={{ ...inp, minHeight: 60, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Deskripsi singkat..." /></div>
+          <div><label style={lbl}>Deskripsi Panjang</label><textarea value={form.long_desc || ""} onChange={e => setF("long_desc", e.target.value)} style={{ ...inp, minHeight: 70, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Penjelasan lebih lengkap..." /></div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={{ ...lbl, marginBottom: 0 }}>Daftar Pelajaran *</label>
+              <button onClick={addLesson} style={{ padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${GOLD}40`, background: `${GOLD}12`, color: GOLD, cursor: "pointer" }}>+ Tambah</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {lessons.map((l, i) => (
+                <div key={i} style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "rgba(255,255,255,0.02)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", gap: 8, padding: "10px 12px", alignItems: "center" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>{i + 1}</div>
+                    <input value={l.title} onChange={e => setLesson(i, "title", e.target.value)} style={{ ...inp, flex: 1, padding: "8px 12px" }} placeholder={`Pelajaran ${i + 1}...`} />
+                    <input value={l.duration} onChange={e => setLesson(i, "duration", e.target.value)} style={{ ...inp, width: 80, padding: "8px 12px", flexShrink: 0 }} placeholder="5 mnt" />
+                    <button onClick={() => setExpandedLesson(expandedLesson === i ? null : i)} style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.08)", color: "#a78bfa", cursor: "pointer", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{expandedLesson === i ? "▲" : "▼ Video"}</button>
+                    <button onClick={() => removeLesson(i)} style={{ width: 32, height: 32, borderRadius: 7, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>✕</button>
+                  </div>
+                  {expandedLesson === i && (
+                    <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 9, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ paddingTop: 10 }}>
+                        <label style={lbl}>Tipe Video</label>
+                        <select value={l.video_type || "youtube"} onChange={e => setLesson(i, "video_type", e.target.value)} style={{ ...inp, cursor: "pointer" }}>
+                          <option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="url">URL Langsung</option><option value="drive">Google Drive</option>
+                        </select>
+                      </div>
+                      <div><label style={lbl}>URL Video</label><input value={l.video_url || ""} onChange={e => setLesson(i, "video_url", e.target.value)} style={inp} placeholder="https://youtu.be/abc123" /></div>
+                      <div><label style={lbl}>Materi (Markdown)</label><textarea value={l.content || ""} onChange={e => setLesson(i, "content", e.target.value)} style={{ ...inp, minHeight: 80, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }} placeholder="Tulis materi pelajaran..." /></div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" id={`sa-free-${i}`} checked={l.is_free || false} onChange={e => setLesson(i, "is_free", e.target.checked)} style={{ width: 14, height: 14, cursor: "pointer" }} /><label htmlFor={`sa-free-${i}`} style={{ ...lbl, marginBottom: 0, cursor: "pointer", opacity: 0.5 }}>🎁 Gratis</label></div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="checkbox" id="pubm-sa" checked={form.published ?? true} onChange={e => setF("published", e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} /><label htmlFor="pubm-sa" style={{ ...lbl, marginBottom: 0, cursor: "pointer" }}>Tampilkan (Published)</label></div>
+          {err && <div style={{ padding: "10px 14px", borderRadius: 9, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "#f87171", fontSize: 13 }}>{err}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+            <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Batal</button>
+            <button onClick={save} disabled={saving} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: saving ? "#a78bfa50" : "linear-gradient(135deg,#a78bfa,#7c3aed)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>{saving ? "Menyimpan..." : isNew ? "Buat Modul" : "Simpan"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type Tab = "overview" | "users" | "admins" | "konten" | "system";
+
+interface UserProfile { id: string; name: string | null; role: string; created_at: string; email?: string; }
 
 const PURPLE = "#a78bfa";
 const GOLD = "#f59e0b";
@@ -48,6 +243,9 @@ export default function SuperAdminPage() {
   const [modules, setModules] = useState<any[]>([]);
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
+  const [kontenSub, setKontenSub] = useState<"artikel" | "modul">("artikel");
+  const [articleModal, setArticleModal] = useState<{ open: boolean; data: DbArticle | null }>({ open: false, data: null });
+  const [moduleModal, setModuleModal] = useState<{ open: boolean; data: DbModule | null }>({ open: false, data: null });
 
   useEffect(() => {
     if (loading) return;
@@ -73,7 +271,7 @@ export default function SuperAdminPage() {
     const sb = createClient();
     const [{ data: profilesData }, { data: artsData }, { data: modsData }] = await Promise.all([
       sb.from("profiles").select("id,name,role,created_at").order("created_at", { ascending: false }),
-      sb.from("articles").select("id,title,category,published,author,created_at").order("created_at", { ascending: false }),
+      sb.from("articles").select("*").order("created_at", { ascending: false }),
       sb.from("modules").select("id,title,level,published,sort_order").order("sort_order", { ascending: true }),
     ]);
     setUsers(profilesData || []);
@@ -127,6 +325,15 @@ export default function SuperAdminPage() {
   };
 
   const handleSignOut = async () => { await signOut(); router.replace("/"); };
+
+  const loadModuleForEdit = async (id: number) => {
+    const sb = createClient();
+    const [{ data: mod }, { data: lessons }] = await Promise.all([
+      sb.from("modules").select("*").eq("id", id).single(),
+      sb.from("module_lessons").select("*").order("sort_order", { ascending: true }).eq("module_id", id),
+    ]);
+    if (mod) setModuleModal({ open: true, data: { ...mod, lessons: lessons || [] } });
+  };
 
   if (loading || role === null) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#08090f" }}>
@@ -443,60 +650,93 @@ export default function SuperAdminPage() {
             {/* ══ KONTEN GLOBAL ══ */}
             {activeTab === "konten" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <div style={{ padding: "12px 16px", borderRadius: 10, background: `${PURPLE}08`, border: `1px solid ${PURPLE}20`, fontSize: 12, color: "#f0f0f5", opacity: 0.8 }}>
-                  👑 Superadmin dapat mengaktifkan/menonaktifkan dan menghapus semua konten. Untuk membuat/edit detail, gunakan <Link href="/admin" style={{ color: PURPLE, textDecoration: "underline" }}>Admin Dashboard</Link>.
+                {/* Sub-nav */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["artikel", "modul"] as const).map(s => (
+                    <button key={s} onClick={() => setKontenSub(s)} style={{ padding: "9px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", transition: "all .2s", background: kontenSub === s ? PURPLE : "rgba(255,255,255,0.05)", color: kontenSub === s ? "#fff" : "rgba(255,255,255,0.45)", boxShadow: kontenSub === s ? `0 4px 16px ${PURPLE}40` : "none" }}>
+                      {s === "artikel" ? "📝 Artikel" : "📚 Modul"}
+                    </button>
+                  ))}
                 </div>
 
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: "#f0f0f5", margin: "4px 0" }}>Artikel ({articles.length})</h3>
-                <div style={{ borderRadius: 16, overflow: "hidden", background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead><tr style={{ background: "rgba(255,255,255,0.02)" }}><th style={thS}>#</th><th style={thS}>Judul</th><th style={thS}>Kategori</th><th style={thS}>Penulis</th><th style={thS}>Status</th><th style={thS}>Aksi</th></tr></thead>
-                      <tbody>
-                        {articles.map((a, i) => (
-                          <tr key={a.id} className="arow" style={{ transition: "background .15s" }}>
-                            <td style={tdS}><span style={{ opacity: 0.2, fontFamily: "monospace", fontSize: 12 }}>{i + 1}</span></td>
-                            <td style={{ ...tdS, maxWidth: 260 }}><div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div></td>
-                            <td style={tdS}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: "rgba(255,255,255,0.06)", color: "#f0f0f5", opacity: 0.7 }}>{a.category}</span></td>
-                            <td style={tdS}><span style={{ opacity: 0.5, fontSize: 12 }}>{a.author}</span></td>
-                            <td style={tdS}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: a.published ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: a.published ? "#22c55e" : "#f87171" }}>{a.published ? "✓ Publik" : "Hidden"}</span></td>
-                            <td style={tdS}>
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button onClick={() => toggleArticle(a.id, a.published)} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${a.published ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`, background: a.published ? "rgba(239,68,68,0.07)" : "rgba(34,197,94,0.07)", color: a.published ? "#f87171" : "#22c55e", cursor: "pointer" }}>
-                                  {a.published ? "Hide" : "Show"}
-                                </button>
-                                <button onClick={() => deleteArticle(a.id)} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer" }}>🗑</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {articles.length === 0 && <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", opacity: 0.25, fontSize: 13 }}>Belum ada artikel.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: "#f0f0f5", margin: "8px 0 4px" }}>Modul ({modules.length})</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {modules.map(m => (
-                    <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                {kontenSub === "artikel" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <div style={{ fontWeight: 700, color: "#f0f0f5", marginBottom: 3 }}>{m.title}</div>
-                        <div style={{ display: "flex", gap: 10, fontSize: 11, opacity: 0.4 }}>
-                          <span>{m.level}</span>
-                          <span style={{ padding: "1px 8px", borderRadius: 6, background: m.published ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: m.published ? "#22c55e" : "#f87171", opacity: 1 }}>{m.published ? "Publik" : "Hidden"}</span>
-                        </div>
+                        <div style={{ fontWeight: 800, fontSize: 15, color: "#f0f0f5" }}>Artikel ({articles.length})</div>
+                        <div style={{ fontSize: 11, opacity: 0.35, marginTop: 2 }}>Kelola semua artikel — buat, edit, sembunyikan, atau hapus</div>
                       </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => toggleModule(m.id, m.published)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: `1px solid ${m.published ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`, background: m.published ? "rgba(239,68,68,0.07)" : "rgba(34,197,94,0.07)", color: m.published ? "#f87171" : "#22c55e", cursor: "pointer" }}>
-                          {m.published ? "Hide" : "Show"}
-                        </button>
-                        <button onClick={() => deleteModule(m.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer" }}>🗑</button>
+                      <button onClick={() => setArticleModal({ open: true, data: null })} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${PURPLE}, #7c3aed)`, color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+                        + Buat Artikel
+                      </button>
+                    </div>
+                    <div style={{ borderRadius: 16, overflow: "hidden", background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          <thead><tr style={{ background: "rgba(255,255,255,0.02)" }}><th style={thS}>#</th><th style={thS}>Judul</th><th style={thS}>Kategori</th><th style={thS}>Penulis</th><th style={thS}>Status</th><th style={thS}>Aksi</th></tr></thead>
+                          <tbody>
+                            {articles.map((a, i) => (
+                              <tr key={a.id} className="arow" style={{ transition: "background .15s" }}>
+                                <td style={tdS}><span style={{ opacity: 0.2, fontFamily: "monospace", fontSize: 12 }}>{i + 1}</span></td>
+                                <td style={{ ...tdS, maxWidth: 260 }}><div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div></td>
+                                <td style={tdS}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: "rgba(255,255,255,0.06)", color: "#f0f0f5", opacity: 0.7 }}>{a.category}</span></td>
+                                <td style={tdS}><span style={{ opacity: 0.5, fontSize: 12 }}>{a.author}</span></td>
+                                <td style={tdS}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: a.published ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: a.published ? "#22c55e" : "#f87171" }}>{a.published ? "✓ Publik" : "Hidden"}</span></td>
+                                <td style={tdS}>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={() => setArticleModal({ open: true, data: a })} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${PURPLE}30`, background: `${PURPLE}10`, color: PURPLE, cursor: "pointer" }}>✎</button>
+                                    <button onClick={() => toggleArticle(a.id, a.published)} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${a.published ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`, background: a.published ? "rgba(239,68,68,0.07)" : "rgba(34,197,94,0.07)", color: a.published ? "#f87171" : "#22c55e", cursor: "pointer" }}>
+                                      {a.published ? "Hide" : "Show"}
+                                    </button>
+                                    <button onClick={() => deleteArticle(a.id)} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer" }}>🗑</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {articles.length === 0 && <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", opacity: 0.25, fontSize: 13 }}>Belum ada artikel.</td></tr>}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  ))}
-                  {modules.length === 0 && <div style={{ padding: "32px", textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 16, border: "1px dashed rgba(255,255,255,0.1)", opacity: 0.4, fontSize: 13 }}>Belum ada modul.</div>}
-                </div>
+                  </div>
+                )}
+
+                {kontenSub === "modul" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 15, color: "#f0f0f5" }}>Modul ({modules.length})</div>
+                        <div style={{ fontSize: 11, opacity: 0.35, marginTop: 2 }}>Kelola semua modul — buat, edit, sembunyikan, atau hapus</div>
+                      </div>
+                      <button onClick={() => setModuleModal({ open: true, data: null })} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${PURPLE}, #7c3aed)`, color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+                        + Buat Modul
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {modules.map((m: any) => (
+                        <div key={m.id} style={{ borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", flexWrap: "wrap", gap: 10 }}>
+                            <div>
+                              <div style={{ fontWeight: 700, color: "#f0f0f5", marginBottom: 4 }}>{m.title}</div>
+                              <div style={{ display: "flex", gap: 10, fontSize: 11, opacity: 0.4, flexWrap: "wrap", alignItems: "center" }}>
+                                <span>{m.level}</span>
+                                <span style={{ padding: "1px 8px", borderRadius: 6, background: m.published ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: m.published ? "#22c55e" : "#f87171", opacity: 1 }}>{m.published ? "Publik" : "Hidden"}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => loadModuleForEdit(m.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: `1px solid ${PURPLE}30`, background: `${PURPLE}10`, color: PURPLE, cursor: "pointer" }}>✎ Edit</button>
+                              <button onClick={() => toggleModule(m.id, m.published)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: `1px solid ${m.published ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`, background: m.published ? "rgba(239,68,68,0.07)" : "rgba(34,197,94,0.07)", color: m.published ? "#f87171" : "#22c55e", cursor: "pointer" }}>
+                                {m.published ? "Hide" : "Show"}
+                              </button>
+                              <button onClick={() => deleteModule(m.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer" }}>🗑</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {modules.length === 0 && <div style={{ padding: "32px", textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 16, border: "1px dashed rgba(255,255,255,0.1)", opacity: 0.4, fontSize: 13 }}>Belum ada modul.</div>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -542,6 +782,13 @@ export default function SuperAdminPage() {
           </div>
         )}
       </main>
+
+      {articleModal.open && (
+        <ArticleModal article={articleModal.data} onClose={() => setArticleModal({ open: false, data: null })} onSaved={loadAll} GOLD={GOLD} />
+      )}
+      {moduleModal.open && (
+        <ModuleModal mod={moduleModal.data} onClose={() => setModuleModal({ open: false, data: null })} onSaved={loadAll} GOLD={GOLD} />
+      )}
     </div>
   );
 }

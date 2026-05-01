@@ -16,9 +16,14 @@ export type Article = {
 };
 
 export type Lesson = {
+  id: number;
   title: string;
   dur: string;
   done: boolean;
+  videoUrl: string | null;
+  videoType: string | null;
+  content: string | null;
+  isFree: boolean;
 };
 
 export type Module = {
@@ -143,9 +148,14 @@ function mapModule(m: any, lessons: any[]): Module {
     desc: m.description || "",
     longDesc: m.long_desc || "",
     lessons: lessons.map((l: any) => ({
+      id: l.id,
       title: l.title,
       dur: l.duration || "5 mnt",
       done: false,
+      videoUrl: l.video_url || null,
+      videoType: l.video_type || "youtube",
+      content: l.content || null,
+      isFree: l.is_free || false,
     })),
     dur: m.duration || "30 mnt",
     level: m.level || "Pemula",

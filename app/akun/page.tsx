@@ -6,8 +6,9 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import { createClient } from "../lib/supabase";
+import { fetchModules, type Module } from "../lib/supabase-data";
 
-type Tab = "profil" | "password" | "bahaya";
+type Tab = "profil" | "pembelajaran" | "password" | "bahaya";
 
 export default function AkunPage() {
   const { user, loading, role, signOut } = useAuth();
@@ -40,6 +41,8 @@ export default function AkunPage() {
 
   // Stats
   const [stats, setStats] = useState({ lessons: 0, bookmarks: 0 });
+  const [modules, setModules] = useState<Module[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<number, number>>({});
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -63,6 +66,20 @@ export default function AkunPage() {
       sb.from("module_progress").select("id", { count: "exact" }).eq("user_id", user.id).eq("completed", true),
       sb.from("artikel_bookmarks").select("id", { count: "exact" }).eq("user_id", user.id),
     ]).then(([p, b]) => setStats({ lessons: p.count || 0, bookmarks: b.count || 0 }));
+
+    // Load modules + progress for learning tab
+    fetchModules().then(setModules);
+    sb.from("module_progress")
+      .select("module_id, lesson_idx, completed")
+      .eq("user_id", user.id)
+      .eq("completed", true)
+      .then(({ data }) => {
+        if (data) {
+          const map: Record<number, number> = {};
+          data.forEach((r: any) => { map[r.module_id] = (map[r.module_id] || 0) + 1; });
+          setProgressMap(map);
+        }
+      });
   }, [user]);
 
   if (loading || !user) return (
@@ -232,11 +249,90 @@ export default function AkunPage() {
           {/* Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
             {tabBtn("profil", "👤 Profil")}
+            {tabBtn("pembelajaran", "📚 Pembelajaran")}
             {tabBtn("password", "🔒 Password")}
             {tabBtn("bahaya", "⚠️ Zona Bahaya")}
           </div>
 
           <div style={{ animation: "fadeUp .2s ease both" }} key={tab}>
+
+            {/* ── PEMBELAJARAN ── */}
+            {tab === "pembelajaran" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "var(--text-main,#e8eaf0)", marginBottom: 3 }}>Progres Belajarmu</h2>
+                    <p style={{ fontSize: 12, color: "var(--text-main,#e8eaf0)", opacity: 0.4 }}>
+                      {Object.keys(progressMap).length > 0
+                        ? `${modules.filter(m => (progressMap[m.id] || 0) >= m.lessons.length && m.lessons.length > 0).length} modul selesai`
+                        : "Mulai belajar dan progress-mu akan tampil di sini"}
+                    </p>
+                  </div>
+                  <Link href="/edukasi" style={{ padding: "9px 18px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: `${A}12`, border: `1px solid ${A}30`, color: A, textDecoration: "none" }}>
+                    📚 Lanjut Belajar →
+                  </Link>
+                </div>
+
+                {modules.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "48px 20px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}>
+                    <div style={{ fontSize: 44, marginBottom: 12 }}>📚</div>
+                    <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, fontSize: 13 }}>Belum ada modul tersedia.</p>
+                  </div>
+                )}
+
+                {modules.map(m => {
+                  const done = progressMap[m.id] || 0;
+                  const total = m.lessons.length;
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                  const isComplete = done >= total && total > 0;
+                  const hasStarted = done > 0;
+
+                  return (
+                    <Link key={m.id} href={`/edukasi/${m.id}`} style={{ textDecoration: "none" }}>
+                      <div className="grad-border" style={{ padding: "18px 20px", transition: "all .2s", cursor: "pointer" }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          <div style={{ width: 46, height: 46, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, background: isComplete ? "rgba(34,197,94,0.12)" : `${m.accent}15`, border: `1px solid ${isComplete ? "rgba(34,197,94,0.3)" : m.accent + "30"}` }}>
+                            {isComplete ? "✅" : m.icon}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-main,#e8eaf0)" }}>{m.title}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: isComplete ? "#22c55e" : hasStarted ? m.accent : "rgba(255,255,255,0.3)" }}>
+                                {isComplete ? "✓ Selesai" : hasStarted ? `${done}/${total}` : "Belum mulai"}
+                              </div>
+                            </div>
+                            <div style={{ height: 5, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: isComplete ? "#22c55e" : `linear-gradient(to right, ${m.accent}, #06b6d4)`, transition: "width 0.5s ease" }} />
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                              <span style={{ fontSize: 10, color: "var(--text-main,#e8eaf0)", opacity: 0.35 }}>{m.level} · ⏱ {m.dur} · {total} pelajaran</span>
+                              <span style={{ fontSize: 10, color: isComplete ? "#22c55e" : m.accent, fontWeight: 700 }}>{pct}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Lesson list preview */}
+                        {hasStarted && total > 0 && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {m.lessons.slice(0, 8).map((l, idx) => {
+                              const lessonDone = idx < done; // simplified progress check
+                              return (
+                                <div key={idx} style={{ width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, background: lessonDone ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${lessonDone ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`, color: lessonDone ? "#22c55e" : "rgba(255,255,255,0.25)", flexShrink: 0 }}>
+                                  {lessonDone ? "✓" : idx + 1}
+                                </div>
+                              );
+                            })}
+                            {total > 8 && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", alignSelf: "center" }}>+{total - 8}</div>}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
             {/* ── PROFIL ── */}
             {tab === "profil" && (
