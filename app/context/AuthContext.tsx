@@ -3,11 +3,13 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import type { User, Session } from "@supabase/supabase-js";
 import { createClient } from "../lib/supabase";
 
+type Role = "user" | "admin" | "superadmin" | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  role: "user" | "admin" | null;
+  role: Role;
   signOut: () => Promise<void>;
 }
 
@@ -23,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"user" | "admin" | null>(null);
+  const [role, setRole] = useState<Role>(null);
   const supabase = createClient();
 
   const fetchRole = async (uid: string) => {
@@ -32,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("role")
       .eq("id", uid)
       .single();
-    setRole((data?.role as "user" | "admin") || "user");
+    setRole((data?.role as Role) || "user");
   };
 
   useEffect(() => {
@@ -53,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Set loading false after role is resolved
   useEffect(() => {
     if (role !== null || !user) setLoading(false);
   }, [role, user]);

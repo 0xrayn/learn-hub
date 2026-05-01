@@ -142,8 +142,26 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
   const [form, setForm] = useState<Partial<DbArticle>>(article || { title: "", excerpt: "", content: "", category: "Pemula", cat_color: "#22c55e", author: "Admin", image_url: "", read_time: "5 mnt", published: true });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [imgMode, setImgMode] = useState<"url" | "upload">("url");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const set = (k: keyof DbArticle, v: any) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setErr("Ukuran file max 5MB."); return; }
+    setUploading(true); setErr("");
+    const sb = createClient();
+    const ext = file.name.split(".").pop();
+    const filename = `artikel-${Date.now()}.${ext}`;
+    const { data, error } = await sb.storage.from("artikel-images").upload(filename, file, { cacheControl: "3600", upsert: false });
+    if (error) { setErr("Upload gagal: " + error.message); setUploading(false); return; }
+    const { data: urlData } = sb.storage.from("artikel-images").getPublicUrl(filename);
+    set("image_url", urlData.publicUrl);
+    setUploading(false);
+  };
 
   const save = async () => {
     if (!form.title?.trim()) { setErr("Judul wajib diisi."); return; }
@@ -180,7 +198,43 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
             <div><label style={lbl}>Waktu Baca</label><input value={form.read_time || ""} onChange={(e) => set("read_time", e.target.value)} style={inp} placeholder="5 mnt" /></div>
           </div>
           <div><label style={lbl}>Penulis</label><input value={form.author || ""} onChange={(e) => set("author", e.target.value)} style={inp} placeholder="Nama penulis" /></div>
-          <div><label style={lbl}>URL Gambar</label><input value={form.image_url || ""} onChange={(e) => set("image_url", e.target.value)} style={inp} placeholder="https://..." /></div>
+
+          {/* Image field with upload + URL option */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={lbl}>Gambar Artikel</label>
+              <div style={{ display: "flex", gap: 4 }}>
+                {(["url", "upload"] as const).map(m => (
+                  <button key={m} onClick={() => setImgMode(m)} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", border: `1px solid ${imgMode === m ? GOLD + "60" : "rgba(255,255,255,0.1)"}`, background: imgMode === m ? GOLD + "15" : "transparent", color: imgMode === m ? GOLD : "rgba(255,255,255,0.4)" }}>
+                    {m === "url" ? "🔗 URL" : "📁 Upload"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {imgMode === "url" ? (
+              <input value={form.image_url || ""} onChange={(e) => set("image_url", e.target.value)} style={inp} placeholder="https://images.unsplash.com/..." />
+            ) : (
+              <div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+                <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
+                  width: "100%", padding: "14px", borderRadius: 9, border: "1px dashed rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.03)", color: uploading ? GOLD : "rgba(255,255,255,0.4)",
+                  fontSize: 13, cursor: uploading ? "not-allowed" : "pointer", transition: "all .2s",
+                }}>
+                  {uploading ? "⏳ Mengupload..." : "📁 Klik untuk pilih file (max 5MB)"}
+                </button>
+                {form.image_url && imgMode === "upload" && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#22c55e" }}>✓ Gambar berhasil diupload</div>
+                )}
+              </div>
+            )}
+            {form.image_url && (
+              <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", height: 100 }}>
+                <img src={form.image_url} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} />
+              </div>
+            )}
+          </div>
+
           <div><label style={lbl}>Excerpt / Ringkasan</label><textarea value={form.excerpt || ""} onChange={(e) => set("excerpt", e.target.value)} style={{ ...inp, minHeight: 70, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} placeholder="Ringkasan singkat..." /></div>
           <div><label style={lbl}>Konten (Markdown)</label><textarea value={form.content || ""} onChange={(e) => set("content", e.target.value)} style={{ ...inp, minHeight: 200, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.7 }} placeholder="# Judul&#10;&#10;Tulis konten artikel di sini dengan format Markdown..." /></div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -190,7 +244,7 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
           {err && <div style={{ padding: "10px 14px", borderRadius: 9, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "#f87171", fontSize: 13 }}>{err}</div>}
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
             <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Batal</button>
-            <button onClick={save} disabled={saving} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: saving ? `${GOLD}50` : `linear-gradient(135deg, ${GOLD}, #f97316)`, color: "#000", fontSize: 13, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>
+            <button onClick={save} disabled={saving || uploading} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: (saving || uploading) ? `${GOLD}50` : `linear-gradient(135deg, ${GOLD}, #f97316)`, color: "#000", fontSize: 13, fontWeight: 800, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
               {saving ? "Menyimpan..." : isNew ? "Buat Artikel" : "Simpan"}
             </button>
           </div>

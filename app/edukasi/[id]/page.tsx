@@ -2,37 +2,55 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { notFound } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { MODULES } from "../../lib/data";
+import { fetchModuleById, fetchModules, type Module } from "../../lib/supabase-data";
 import { useAuth } from "../../context/AuthContext";
 import { createClient } from "../../lib/supabase";
-
-const FREE_MODULES = [1, 2];
 
 export default function EdukasiDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const modul = MODULES.find(m => m.id === Number(id));
+  const { user, loading: authLoading } = useAuth();
 
+  const [modul, setModul] = useState<Module | null>(null);
+  const [allModules, setAllModules] = useState<Module[]>([]);
+  const [pageLoading, setPageLoading] = useState(true);
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
   const [progressLoading, setProgressLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const isFree = FREE_MODULES.includes(Number(id));
-  const isLocked = !isFree && !user;
+  // Load modul dari Supabase
+  useEffect(() => {
+    const load = async () => {
+      setPageLoading(true);
+      const [mod, all] = await Promise.all([
+        fetchModuleById(Number(id)),
+        fetchModules(),
+      ]);
+      setModul(mod);
+      setAllModules(all);
+      setPageLoading(false);
+    };
+    load();
+  }, [id]);
+
+  // Cek akses: modul ke-1 dan ke-2 gratis, sisanya perlu login
+  // Cek berdasarkan sort order / posisi di list (index 0 dan 1)
+  const modulIdx = allModules.findIndex(m => m.id === Number(id));
+  const isFree = modulIdx === -1 ? true : modulIdx < 2; // fallback true saat loading
+  const isLocked = !isFree && !user && !authLoading;
 
   useEffect(() => {
-    if (!loading && isLocked) {
+    if (!authLoading && isLocked) {
       router.replace(`/register?from=edukasi/${id}`);
     }
-  }, [loading, isLocked, id, router]);
+  }, [authLoading, isLocked, id, router]);
 
-  // Load progress from DB
+  // Load progress dari DB
   useEffect(() => {
     if (!user || !modul) { setProgressLoading(false); return; }
+    setProgressLoading(true);
     const supabase = createClient();
     supabase
       .from("module_progress")
@@ -41,9 +59,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
       .eq("module_id", modul.id)
       .then(({ data }) => {
         if (data) {
-          const done = new Set(
-            data.filter(r => r.completed).map(r => r.lesson_idx)
-          );
+          const done = new Set(data.filter(r => r.completed).map(r => r.lesson_idx));
           setCompletedLessons(done);
         }
         setProgressLoading(false);
@@ -55,7 +71,6 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
     setSaving(true);
     const supabase = createClient();
     const isNowComplete = !completedLessons.has(lessonIdx);
-
     const { error } = await supabase
       .from("module_progress")
       .upsert({
@@ -65,7 +80,6 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
         completed: isNowComplete,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,module_id,lesson_idx" });
-
     if (!error) {
       setCompletedLessons(prev => {
         const next = new Set(prev);
@@ -77,21 +91,39 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
     setSaving(false);
   };
 
-  if (!modul) notFound();
-
-  if (loading) return (
+  // Loading state
+  if (pageLoading || authLoading) return (
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         <div style={{ textAlign: "center" }}>
           <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(167,139,250,0.2)", borderTop: "3px solid #a78bfa", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
-          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, fontSize: 14 }}>Memeriksa akses...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, fontSize: 14 }}>Memuat modul...</p>
         </div>
       </main>
     </>
   );
 
+  // Not found
+  if (!modul) return (
+    <>
+      <Navbar />
+      <main style={{ minHeight: "100vh", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>📚</div>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: "var(--text-main,#e8eaf0)", marginBottom: 8 }}>Modul Tidak Ditemukan</h1>
+          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, marginBottom: 24 }}>Modul ini mungkin sudah dihapus atau belum dipublish.</p>
+          <Link href="/edukasi" style={{ padding: "10px 24px", borderRadius: 10, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.3)", color: "#a78bfa", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>
+            ← Kembali ke Edukasi
+          </Link>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
+
+  // Locked state
   if (isLocked) return (
     <>
       <Navbar />
@@ -100,7 +132,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
           <div style={{ fontSize: 56, marginBottom: 16 }}>🔒</div>
           <h2 className="font-black" style={{ fontSize: "1.6rem", color: "var(--text-main,#e8eaf0)", marginBottom: 10 }}>Modul ini Perlu Akun</h2>
           <p style={{ fontSize: 14, color: "var(--text-main,#e8eaf0)", opacity: 0.5, lineHeight: 1.7, marginBottom: 24 }}>
-            Daftar gratis untuk mengakses <strong style={{ color: "#a78bfa" }}>{modul?.title}</strong> dan semua modul lanjutan.
+            Daftar gratis untuk mengakses <strong style={{ color: "#a78bfa" }}>{modul.title}</strong> dan semua modul lanjutan.
           </p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
             <Link href="/register" style={{ padding: "12px 24px", borderRadius: 11, fontSize: 14, fontWeight: 800, background: "linear-gradient(135deg, #a78bfa, #8b5cf6)", color: "#fff", textDecoration: "none" }}>Daftar Gratis</Link>
@@ -114,14 +146,17 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
   const totalDone = completedLessons.size;
   const totalLessons = modul.lessons.length;
   const pct = totalLessons > 0 ? Math.round((totalDone / totalLessons) * 100) : 0;
-  const moduleDone = totalDone === totalLessons;
+  const moduleDone = totalDone === totalLessons && totalLessons > 0;
 
-  const prev = MODULES.find(m => m.id === modul.id - 1);
-  const next = MODULES.find(m => m.id === modul.id + 1);
+  // Prev / Next dari allModules (berdasarkan posisi di list, bukan ID)
+  const currentIdx = allModules.findIndex(m => m.id === modul.id);
+  const prev = currentIdx > 0 ? allModules[currentIdx - 1] : null;
+  const next = currentIdx < allModules.length - 1 ? allModules[currentIdx + 1] : null;
 
   return (
     <>
       <Navbar />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <main style={{ minHeight: "100vh", paddingTop: 56 }}>
 
         {/* Hero banner */}
@@ -146,7 +181,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                   {!user && isFree && <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e" }}>🆓 Gratis</span>}
                 </div>
                 <h1 className="font-black" style={{ fontSize: "clamp(1.5rem,3vw,2.2rem)", color: "var(--text-main,#e8eaf0)", lineHeight: 1.2, marginBottom: 10 }}>{modul.title}</h1>
-                <p style={{ fontSize: 14, color: "var(--text-main,#e8eaf0)", opacity: 0.55, lineHeight: 1.7 }}>{modul.longDesc}</p>
+                <p style={{ fontSize: 14, color: "var(--text-main,#e8eaf0)", opacity: 0.55, lineHeight: 1.7 }}>{modul.longDesc || modul.desc}</p>
               </div>
             </div>
 
@@ -177,7 +212,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
             <div style={{ height: 7, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
               <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(to right, ${modul.accent}, #06b6d4)`, transition: "width 0.5s ease" }} />
             </div>
-            {!user && <p style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.4, marginTop: 10, margin: "10px 0 0" }}>💡 <Link href="/login" style={{ color: modul.accent, textDecoration: "none" }}>Login</Link> untuk menyimpan progress kamu</p>}
+            {!user && <p style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.4, margin: "10px 0 0" }}>💡 <Link href="/login" style={{ color: modul.accent, textDecoration: "none" }}>Login</Link> untuk menyimpan progress kamu</p>}
           </div>
 
           {/* Lessons list */}
@@ -185,7 +220,6 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
           {progressLoading ? (
             <div style={{ textAlign: "center", padding: "32px 0", opacity: 0.4 }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${modul.accent}30`, borderTop: `2px solid ${modul.accent}`, margin: "0 auto", animation: "spin 0.8s linear infinite" }} />
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 40 }}>
@@ -196,34 +230,16 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                     key={i}
                     className="grad-border"
                     onClick={() => user && toggleLesson(i)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 14, padding: "14px 18px",
-                      cursor: user ? "pointer" : "default",
-                      opacity: 1,
-                      transition: "opacity .15s",
-                    }}
+                    style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: user ? "pointer" : "default", transition: "opacity .15s" }}
                   >
-                    <div style={{
-                      width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 800,
-                      background: done ? "rgba(34,197,94,0.15)" : `color-mix(in srgb, ${modul.accent} 15%, transparent)`,
-                      border: done ? "1px solid rgba(34,197,94,0.3)" : `1px solid ${modul.accent}40`,
-                      color: done ? "#22c55e" : modul.accent,
-                      transition: "all .2s",
-                    }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: done ? "rgba(34,197,94,0.15)" : `color-mix(in srgb, ${modul.accent} 15%, transparent)`, border: done ? "1px solid rgba(34,197,94,0.3)" : `1px solid ${modul.accent}40`, color: done ? "#22c55e" : modul.accent, transition: "all .2s" }}>
                       {done ? "✓" : i + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-main,#e8eaf0)" }}>{lesson.title}</div>
                       <div className="font-mono-styled" style={{ fontSize: 11, opacity: 0.4, color: "var(--text-main,#e8eaf0)", marginTop: 2 }}>⏱ {lesson.dur}</div>
                     </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, flexShrink: 0,
-                      background: done ? "rgba(34,197,94,0.1)" : `color-mix(in srgb, ${modul.accent} 10%, transparent)`,
-                      color: done ? "#22c55e" : modul.accent,
-                      transition: "all .2s",
-                    }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, flexShrink: 0, background: done ? "rgba(34,197,94,0.1)" : `color-mix(in srgb, ${modul.accent} 10%, transparent)`, color: done ? "#22c55e" : modul.accent, transition: "all .2s" }}>
                       {done ? "✅ Selesai" : user ? "Tandai Selesai" : "—"}
                     </span>
                   </div>
@@ -241,11 +257,8 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                     setSaving(true);
                     const supabase = createClient();
                     const rows = modul.lessons.map((_, i) => ({
-                      user_id: user.id,
-                      module_id: modul.id,
-                      lesson_idx: i,
-                      completed: true,
-                      updated_at: new Date().toISOString(),
+                      user_id: user.id, module_id: modul.id, lesson_idx: i,
+                      completed: true, updated_at: new Date().toISOString(),
                     }));
                     await supabase.from("module_progress").upsert(rows, { onConflict: "user_id,module_id,lesson_idx" });
                     setCompletedLessons(new Set(modul.lessons.map((_, i) => i)));
@@ -272,7 +285,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
             </div>
           )}
 
-          {/* Prev/Next */}
+          {/* Prev / Next */}
           <div style={{ display: "grid", gridTemplateColumns: prev && next ? "1fr 1fr" : "1fr", gap: 12 }}>
             {prev && (
               <Link href={`/edukasi/${prev.id}`} style={{ textDecoration: "none" }}>

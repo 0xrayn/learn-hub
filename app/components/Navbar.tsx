@@ -83,11 +83,10 @@ export default function Navbar() {
 
   // Resolve href per item berdasarkan pathname
   const getHref = (item: typeof NAV_ITEMS[0]) => {
-    // Artikel & Edukasi selalu ke route page-nya
-    if (item.label === "Artikel") return "/artikel";
-    if (item.label === "Edukasi") return "/edukasi";
-    // Yang lain: kalau di homepage pakai anchor, kalau tidak pakai route
-    return isHome ? item.anchorHref : item.routeHref;
+    // Di homepage: SEMUA pakai anchor (#artikel, #edukasi, #harga, dll)
+    // Di halaman lain: pakai route (kecuali Artikel & Edukasi tetap ke page-nya)
+    if (isHome) return item.anchorHref;
+    return item.routeHref;
   };
 
   return (
@@ -216,19 +215,20 @@ export default function Navbar() {
                       <div style={{ fontSize: 10, opacity: 0.38, color: "var(--text-main,#e8eaf0)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
                     </div>
                     {[
-                      ...(role === "admin" ? [{ label: "🛡️ Admin Dashboard", href: "/admin" }] : []),
+                      ...(role === "superadmin" ? [{ label: "👑 Superadmin Panel", href: "/superadmin" }] : []),
+                      ...(role === "admin" || role === "superadmin" ? [{ label: "🛡️ Admin Dashboard", href: "/admin" }] : []),
                       { label: "📚 Progress Belajar", href: "/edukasi" },
                       { label: "🔖 Bookmark Artikel", href: "/artikel" },
                       { label: "⚙️ Pengaturan Akun", href: "/akun" },
                     ].map(item => (
                       <Link key={item.label} href={item.href} onClick={() => setUserDropOpen(false)} style={{
                         display: "block", padding: "8px 12px", borderRadius: 8, fontSize: 13,
-                        color: item.label.startsWith("🛡️") ? accent : "var(--text-main,#e8eaf0)",
+                        color: item.label.startsWith("👑") ? "#a78bfa" : item.label.startsWith("🛡️") ? accent : "var(--text-main,#e8eaf0)",
                         textDecoration: "none", opacity: 0.65,
-                        fontWeight: item.label.startsWith("🛡️") ? 700 : 400,
+                        fontWeight: (item.label.startsWith("🛡️") || item.label.startsWith("👑")) ? 700 : 400,
                         transition: "all .15s",
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = item.label.startsWith("🛡️") ? `${accent}12` : "rgba(255,255,255,0.06)"; }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = item.label.startsWith("👑") ? "rgba(167,139,250,0.12)" : item.label.startsWith("🛡️") ? `${accent}12` : "rgba(255,255,255,0.06)"; }}
                       onMouseLeave={e => { e.currentTarget.style.opacity = "0.65"; e.currentTarget.style.background = "transparent"; }}>
                         {item.label}
                       </Link>
