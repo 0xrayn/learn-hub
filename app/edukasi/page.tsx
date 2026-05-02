@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
@@ -8,7 +8,12 @@ import { fetchModules, type Module } from "../lib/supabase-data";
 import { useAuth } from "../context/AuthContext";
 import { createClient } from "../lib/supabase";
 
-const FREE_MODULE_INDICES = [0, 1]; // first 2 modules are free
+const FREE_MODULE_INDICES = [0, 1];
+
+// Unsplash fallback images per level keyword
+const FALLBACK_COVERS: Record<string, string> = {
+  default: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=800&q=70",
+};
 
 export default function EdukasiPage() {
   const { user, loading } = useAuth();
@@ -18,6 +23,10 @@ export default function EdukasiPage() {
   const [progressMap, setProgressMap] = useState<Record<number, number>>({});
   const [progressLoading, setProgressLoading] = useState(true);
 
+  // Search & filter
+  const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState<string>("Semua");
+
   useEffect(() => {
     fetchModules().then((data) => { setModules(data); setModulesLoading(false); });
   }, []);
@@ -25,11 +34,7 @@ export default function EdukasiPage() {
   useEffect(() => {
     if (!user) { setProgressLoading(false); return; }
     const supabase = createClient();
-    supabase
-      .from("module_progress")
-      .select("module_id, lesson_idx, completed")
-      .eq("user_id", user.id)
-      .eq("completed", true)
+    supabase.from("module_progress").select("module_id, lesson_idx, completed").eq("user_id", user.id).eq("completed", true)
       .then(({ data }) => {
         if (data) {
           const map: Record<number, number> = {};
@@ -40,7 +45,17 @@ export default function EdukasiPage() {
       });
   }, [user]);
 
-  const modulesCompleted = modules.filter((m) => (progressMap[m.id] || 0) >= m.lessons.length).length;
+  const levels = useMemo(() => ["Semua", ...Array.from(new Set(modules.map(m => m.level).filter(Boolean)))], [modules]);
+
+  const filtered = useMemo(() => {
+    return modules.filter(m => {
+      const matchSearch = search === "" || m.title.toLowerCase().includes(search.toLowerCase()) || m.desc.toLowerCase().includes(search.toLowerCase());
+      const matchLevel = levelFilter === "Semua" || m.level === levelFilter;
+      return matchSearch && matchLevel;
+    });
+  }, [modules, search, levelFilter]);
+
+  const modulesCompleted = modules.filter((m) => (progressMap[m.id] || 0) >= m.lessons.length && m.lessons.length > 0).length;
   const totalLessonsCompleted = Object.values(progressMap).reduce((a, b) => a + b, 0);
   const totalLessons = modules.reduce((a, m) => a + m.lessons.length, 0);
 
@@ -54,131 +69,155 @@ export default function EdukasiPage() {
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", paddingTop: 56 }}>
+        {/* ── Hero ── */}
         <div style={{ padding: "52px 20px 44px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "color-mix(in srgb, #a78bfa 4%, transparent)" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 999, marginBottom: 18, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>
             🎓 {modulesLoading ? "..." : modules.length} Modul Belajar
           </div>
-          <h1 className="font-black" style={{ fontSize: "clamp(1.8rem,4vw,3rem)", color: "var(--text-main,#e8eaf0)", marginBottom: 10, lineHeight: 1.1 }}>
-            Modul <span style={{ color: "#a78bfa" }}>Edukasi</span> Bitcoin
+          <h1 style={{ fontSize: "clamp(1.8rem,4.5vw,3.2rem)", fontWeight: 900, color: "var(--text-main,#e8eaf0)", letterSpacing: "-0.04em", lineHeight: 1.1, marginBottom: 14 }}>
+            Kuasai <span style={{ color: "#a78bfa" }}>Crypto</span> dari Dasar
           </h1>
-          <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.45, maxWidth: 440, margin: "0 auto 28px", fontSize: 14 }}>
-            Dari nol hingga mahir. 2 modul pertama gratis, modul lanjutan perlu akun.
+          <p style={{ fontSize: "clamp(13px,2vw,15px)", color: "var(--text-main,#e8eaf0)", opacity: 0.5, maxWidth: 500, margin: "0 auto 32px", lineHeight: 1.7 }}>
+            Belajar terstruktur dari nol hingga mahir. Modul lengkap dengan video, quiz, dan sertifikat.
           </p>
 
-          {!loading && !user && (
-            <div style={{ maxWidth: 440, margin: "0 auto", padding: "14px 20px", borderRadius: 12, background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.22)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-              <span style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.7 }}>🔒 Daftar gratis untuk unlock semua modul</span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Link href="/register" style={{ padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#a78bfa", color: "#000", textDecoration: "none" }}>Daftar Gratis</Link>
-                <Link href="/login" style={{ padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "rgba(255,255,255,0.08)", color: "var(--text-main,#e8eaf0)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.12)" }}>Masuk</Link>
-              </div>
+          {/* Stats */}
+          {user && !progressLoading && (
+            <div style={{ display: "inline-flex", gap: 28, padding: "14px 28px", borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 32, flexWrap: "wrap", justifyContent: "center" }}>
+              {[
+                { v: modulesCompleted, l: "Modul Selesai", c: "#a78bfa" },
+                { v: totalLessonsCompleted, l: "Lesson Selesai", c: "#22c55e" },
+                { v: `${totalLessons > 0 ? Math.round((totalLessonsCompleted / totalLessons) * 100) : 0}%`, l: "Progress Total", c: "#06b6d4" },
+              ].map(s => (
+                <div key={s.l} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: s.c, fontFamily: "monospace" }}>{s.v}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-main,#e8eaf0)", opacity: 0.35, marginTop: 2 }}>{s.l}</div>
+                </div>
+              ))}
             </div>
           )}
 
-          {user && !progressLoading && modules.length > 0 && (
-            <div style={{ maxWidth: 440, margin: "0 auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}>
-                <span style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.5 }}>Progress kamu</span>
-                <span className="font-mono-styled" style={{ color: "#a78bfa", fontWeight: 700 }}>{modulesCompleted}/{modules.length} Modul Selesai</span>
-              </div>
-              <div style={{ height: 7, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 99, width: `${(modulesCompleted / modules.length) * 100}%`, background: "linear-gradient(to right, #8b5cf6, #06b6d4)", boxShadow: "0 0 10px rgba(139,92,246,0.5)", transition: "width 1s ease" }} />
-              </div>
-              <p style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.35, marginTop: 8 }}>{totalLessonsCompleted} dari {totalLessons} pelajaran selesai</p>
+          {/* Search + Filter */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", maxWidth: 620, margin: "0 auto" }}>
+            <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, opacity: 0.35 }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Cari modul..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px 11px 40px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "var(--text-main,#e8eaf0)", fontSize: 14, outline: "none", boxSizing: "border-box" as const }}
+              />
             </div>
-          )}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+              {levels.map(lv => (
+                <button key={lv} onClick={() => setLevelFilter(lv)} style={{ padding: "10px 16px", borderRadius: 11, fontSize: 12, fontWeight: 700, cursor: "pointer", border: levelFilter === lv ? "1px solid #a78bfa50" : "1px solid rgba(255,255,255,0.1)", background: levelFilter === lv ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.04)", color: levelFilter === lv ? "#a78bfa" : "var(--text-main,#e8eaf0)", transition: "all .15s" }}>
+                  {lv}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "36px 20px 80px" }}>
-          <div style={{ display: "flex", gap: 12, marginBottom: 36, flexWrap: "wrap" }}>
-            {[
-              { v: modulesLoading ? "..." : `${modules.length}`, l: "Modul", icon: "📚" },
-              { v: modulesLoading ? "..." : `${totalLessons}`, l: "Pelajaran", icon: "📖" },
-              { v: "2", l: "Modul Gratis", icon: "🎁" },
-            ].map((s) => (
-              <div key={s.l} className="grad-border" style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 10, flex: "1 1 120px" }}>
-                <span style={{ fontSize: 20 }}>{s.icon}</span>
-                <div>
-                  <div className="font-mono-styled" style={{ fontSize: 18, fontWeight: 900, color: "#a78bfa" }}>{s.v}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.4 }}>{s.l}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
+        {/* ── Module Cards ── */}
+        <div style={{ maxWidth: 1160, margin: "0 auto", padding: "40px 20px 80px" }}>
           {modulesLoading ? (
-            <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ textAlign: "center", padding: "64px 0" }}>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid rgba(167,139,250,0.15)", borderTop: "2px solid #a78bfa", margin: "0 auto 14px", animation: "spin 0.7s linear infinite" }} />
-              <p style={{ opacity: 0.3, fontSize: 13, color: "var(--text-main,#e8eaf0)" }}>Memuat modul...</p>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(167,139,250,0.2)", borderTop: "3px solid #a78bfa", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
+              <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.35, fontSize: 13 }}>Memuat modul...</p>
             </div>
-          ) : modules.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 20px", maxWidth: 440, margin: "0 auto" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-              <h3 style={{ fontWeight: 800, fontSize: 18, color: "var(--text-main,#e8eaf0)", marginBottom: 8 }}>Belum Ada Modul</h3>
-              <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.45, lineHeight: 1.7 }}>
-                Admin belum menambahkan modul. Silakan login sebagai admin dan buat modul di panel admin.
-              </p>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "64px 0" }}>
+              <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.3 }}>🔍</div>
+              <p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4, fontSize: 14 }}>Tidak ada modul yang cocok dengan pencarian.</p>
+              <button onClick={() => { setSearch(""); setLevelFilter("Semua"); }} style={{ marginTop: 14, padding: "9px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "var(--text-main,#e8eaf0)" }}>Reset Filter</button>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 18 }}>
-              {modules.map((m, idx) => {
-                const isFree = FREE_MODULE_INDICES.includes(idx);
-                const isLocked = !isFree && !user;
-                const doneCount = progressMap[m.id] || 0;
-                const moduleDone = m.lessons.length > 0 && doneCount >= m.lessons.length;
-                const pct = m.lessons.length > 0 ? Math.round((doneCount / m.lessons.length) * 100) : 0;
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 22 }}>
+              {filtered.map((module, idx) => {
+                const globalIdx = modules.findIndex(m => m.id === module.id);
+                const isFree = FREE_MODULE_INDICES.includes(globalIdx);
+                const isAccessible = isFree || !!user;
+                const doneCount = progressMap[module.id] || 0;
+                const pct = module.lessons.length > 0 ? Math.round((doneCount / module.lessons.length) * 100) : 0;
+                const isDone = doneCount >= module.lessons.length && module.lessons.length > 0;
+                const coverImg = module.coverImage || FALLBACK_COVERS.default;
 
                 return (
-                  <div key={m.id} onClick={() => handleModuleClick(m, idx)} style={{ cursor: "pointer", position: "relative" }}>
-                    <div className="grad-border p-5" style={{ transition: "transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s", height: "100%", opacity: isLocked ? 0.65 : 1 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-5px)"; e.currentTarget.style.boxShadow = `0 18px 44px rgba(0,0,0,0.28), 0 0 0 1px ${isLocked ? "#a78bfa25" : m.accent + "25"}`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-                      {isLocked && (
-                        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 2, display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, background: "rgba(167,139,250,0.15)", border: "1px solid rgba(167,139,250,0.3)", fontSize: 10, fontWeight: 700, color: "#a78bfa" }}>
-                          🔒 Login dulu
-                        </div>
-                      )}
-                      {isFree && (
-                        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 2, display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)", fontSize: 10, fontWeight: 700, color: "#22c55e" }}>
-                          🆓 Gratis
-                        </div>
-                      )}
+                  <div
+                    key={module.id}
+                    onClick={() => handleModuleClick(module, globalIdx)}
+                    style={{ borderRadius: 18, overflow: "hidden", border: `1px solid rgba(255,255,255,0.07)`, background: "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all .22s", position: "relative" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.borderColor = module.accent + "50"; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 16px 40px rgba(0,0,0,0.3), 0 0 0 1px ${module.accent}20`; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}
+                  >
+                    {/* Cover image */}
+                    <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
+                      <img
+                        src={coverImg}
+                        alt={module.title}
+                        loading="lazy"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", filter: "saturate(0.8) brightness(0.75)", transition: "transform .4s ease" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = "scale(1.04)"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = ""; }}
+                      />
+                      {/* Gradient overlay */}
+                      <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(8,8,18,0.7) 100%)` }} />
+                      {/* Badges on image */}
+                      <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20, background: `color-mix(in srgb, ${module.levelColor} 15%, rgba(0,0,0,0.5))`, border: `1px solid ${module.levelColor}40`, color: module.levelColor, backdropFilter: "blur(8px)" }}>{module.level}</span>
+                        {isFree && !user && <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20, background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", backdropFilter: "blur(8px)" }}>🆓 Gratis</span>}
+                        {!isAccessible && <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" }}>🔒</span>}
+                        {isDone && <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20, background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.4)", color: "#22c55e", backdropFilter: "blur(8px)" }}>🏆 Selesai</span>}
+                      </div>
+                      {/* Module number on image */}
+                      <div style={{ position: "absolute", bottom: 12, right: 12, fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.35)", letterSpacing: "0.05em" }}>Modul {module.num}</div>
+                      {/* Icon */}
+                      <div style={{ position: "absolute", bottom: -18, left: 18, width: 48, height: 48, borderRadius: 14, fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center", background: `color-mix(in srgb, ${module.accent} 18%, rgba(8,8,18,0.9))`, border: `2px solid ${module.accent}40`, boxShadow: `0 4px 16px rgba(0,0,0,0.4)` }}>{module.icon}</div>
+                    </div>
 
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-                        <div style={{ width: 50, height: 50, borderRadius: 13, fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", background: isLocked ? "rgba(167,139,250,0.1)" : moduleDone ? "rgba(34,197,94,0.12)" : `color-mix(in srgb, ${m.accent} 12%, transparent)`, border: `1px solid ${isLocked ? "rgba(167,139,250,0.2)" : moduleDone ? "rgba(34,197,94,0.25)" : m.accent + "30"}` }}>
-                          {isLocked ? "🔒" : moduleDone ? "✅" : m.icon}
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: `color-mix(in srgb, ${m.levelColor} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${m.levelColor} 30%, transparent)`, color: m.levelColor, marginTop: 28 }}>{m.level}</span>
+                    {/* Card body */}
+                    <div style={{ padding: "28px 18px 18px" }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--text-main,#e8eaf0)", lineHeight: 1.3, marginBottom: 7, letterSpacing: "-0.02em" }}>{module.title}</h3>
+                      <p style={{ fontSize: 12, color: "var(--text-main,#e8eaf0)", opacity: 0.45, lineHeight: 1.65, marginBottom: 16 }}>{module.desc}</p>
+
+                      {/* Stats row */}
+                      <div style={{ display: "flex", gap: 14, marginBottom: user ? 14 : 0, flexWrap: "wrap" }}>
+                        {[{ icon: "⏱", v: module.dur }, { icon: "📚", v: `${module.lessons.length} lesson` }].map(s => (
+                          <span key={s.v} style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.4, display: "flex", alignItems: "center", gap: 4 }}>{s.icon} {s.v}</span>
+                        ))}
                       </div>
 
-                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "var(--text-main,#e8eaf0)", marginBottom: 7, lineHeight: 1.3 }}>{m.title}</h3>
-                      <p style={{ fontSize: 12, color: "var(--text-main,#e8eaf0)", opacity: 0.42, lineHeight: 1.6, marginBottom: 12 }}>{m.desc}</p>
-
-                      <div className="font-mono-styled" style={{ display: "flex", gap: 14, fontSize: 10, color: "var(--text-main,#e8eaf0)", opacity: 0.3, marginBottom: 14 }}>
-                        <span>⏱ {m.dur}</span>
-                        <span>📚 {m.lessons.length} pelajaran</span>
-                      </div>
-
-                      {user && !isLocked && (
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 5 }}>
-                            <span style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.4 }}>Progress</span>
-                            <span className="font-mono-styled" style={{ color: m.accent, fontWeight: 700 }}>{doneCount}/{m.lessons.length}</span>
+                      {/* Progress */}
+                      {user && module.lessons.length > 0 && (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
+                            <span style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.35 }}>{doneCount}/{module.lessons.length} selesai</span>
+                            <span style={{ color: module.accent, fontWeight: 700, fontFamily: "monospace" }}>{pct}%</span>
                           </div>
                           <div style={{ height: 4, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(to right, ${m.accent}, #06b6d4)`, transition: "width 0.8s ease" }} />
+                            <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: isDone ? "linear-gradient(90deg, #22c55e, #16a34a)" : `linear-gradient(90deg, ${module.accent}, color-mix(in srgb, ${module.accent} 60%, #06b6d4))`, transition: "width .5s ease" }} />
                           </div>
                         </div>
                       )}
-
-                      <div style={{ padding: "9px 0", borderRadius: 9, textAlign: "center", fontSize: 12, fontWeight: 700, background: isLocked ? "rgba(167,139,250,0.1)" : moduleDone ? "rgba(34,197,94,0.08)" : `color-mix(in srgb, ${m.accent} 10%, transparent)`, border: `1px solid ${isLocked ? "rgba(167,139,250,0.25)" : moduleDone ? "rgba(34,197,94,0.25)" : m.accent + "30"}`, color: isLocked ? "#a78bfa" : moduleDone ? "#22c55e" : m.accent }}>
-                        {isLocked ? "🔒 Daftar untuk Unlock" : moduleDone ? "✓ Selesai — Ulangi" : doneCount > 0 ? `Lanjutkan (${pct}%)` : "Mulai Belajar →"}
-                      </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Login CTA */}
+          {!loading && !user && (
+            <div style={{ marginTop: 48, padding: "28px 32px", borderRadius: 20, background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", textAlign: "center", maxWidth: 540, margin: "48px auto 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🔐</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-main,#e8eaf0)", marginBottom: 8 }}>Akses Semua Modul Gratis</div>
+              <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.5, lineHeight: 1.65, marginBottom: 20 }}>Daftar sekarang dan dapatkan akses ke semua modul, quiz, dan sertifikat.</p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <Link href="/register" style={{ padding: "11px 24px", borderRadius: 11, fontSize: 14, fontWeight: 800, background: "linear-gradient(135deg, #a78bfa, #8b5cf6)", color: "#fff", textDecoration: "none" }}>Daftar Gratis</Link>
+                <Link href="/login" style={{ padding: "11px 24px", borderRadius: 11, fontSize: 14, fontWeight: 700, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-main,#e8eaf0)", textDecoration: "none" }}>Masuk</Link>
+              </div>
             </div>
           )}
         </div>

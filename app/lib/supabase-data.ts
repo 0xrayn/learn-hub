@@ -39,6 +39,7 @@ export type Module = {
   done: boolean;
   accent: string;
   levelColor: string;
+  coverImage: string | null;
 };
 
 function getSupabaseConfig() {
@@ -162,5 +163,6 @@ function mapModule(m: any, lessons: any[]): Module {
     done: false,
     accent: m.accent || "#f59e0b",
     levelColor: m.level_color || "#22c55e",
+    coverImage: m.cover_image || null,
   };
 }
