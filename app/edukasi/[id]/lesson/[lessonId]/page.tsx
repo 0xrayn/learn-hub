@@ -1,7 +1,7 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Navbar from "../../../../components/Navbar";
 import Footer from "../../../../components/Footer";
 import { useAuth } from "../../../../context/AuthContext";
@@ -14,6 +14,7 @@ interface LessonDetail {
 }
 interface ModuleBasic { id: number; title: string; accent: string; num: string; cover_image: string | null; }
 interface QuizQuestion { question: string; options: string[]; answer: number; explanation: string; }
+interface ShuffledQuestion { question: string; options: string[]; correctIdx: number; explanation: string; }
 
 function getYouTubeId(url: string): string | null {
   const rs = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?v=([^&]+)/, /youtube\.com\/embed\/([^?]+)/];
@@ -65,6 +66,16 @@ function MarkdownContent({ content, accent }: { content: string; accent: string 
       const items: string[] = [];
       while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, "")); i++; }
       elements.push(<ol key={`ol-${i}`} style={{ margin: "10px 0", paddingLeft: 0, display: "flex", flexDirection: "column", gap: 8, listStyle: "none" }}>{items.map((item, j) => <li key={j} style={{ display: "flex", alignItems: "flex-start", gap: 12, fontSize: 14, color: "var(--text-main,#e8eaf0)", lineHeight: 1.7 }}><span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", background: `${accent}20`, border: `1px solid ${accent}40`, color: accent, fontSize: 11, fontWeight: 800, flexShrink: 0, marginTop: 2 }}>{j + 1}</span><span style={{ opacity: 0.85 }}>{renderInline(item)}</span></li>)}</ol>); continue;
+    } else if (line.startsWith("|") && line.endsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith("|") && lines[i].endsWith("|")) { tableLines.push(lines[i]); i++; }
+      const rows = tableLines.filter(r => !/^\|[\s\-:|]+\|$/.test(r));
+      const parseRow = (r: string) => r.split("|").slice(1, -1).map(c => c.trim());
+      if (rows.length > 0) {
+        const header = parseRow(rows[0]); const body = rows.slice(1);
+        elements.push(<div key={`tbl-${i}`} style={{ margin: "18px 0", overflowX: "auto", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}><thead><tr style={{ background: `${accent}18` }}>{header.map((h, hi) => <th key={hi} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 800, color: accent, borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" as const }}>{h}</th>)}</tr></thead><tbody>{body.map((row, ri) => { const cells = parseRow(row); return (<tr key={ri} style={{ borderBottom: ri < body.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", background: ri % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>{cells.map((cell, ci) => <td key={ci} style={{ padding: "9px 14px", color: "var(--text-main,#e8eaf0)", opacity: 0.8, lineHeight: 1.6 }}>{renderInline(cell)}</td>)}</tr>); })}</tbody></table></div>);
+      }
+      continue;
     } else if (line.startsWith("```")) {
       const lang = line.slice(3).trim(); const codeLines: string[] = []; i++;
       while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
@@ -83,7 +94,20 @@ interface QuizSectionProps {
   onQuizDone: (score: number, correct: number, total: number) => void;
   alreadyPassed: boolean; savedScore: number | null;
 }
+function shuffleQuestions(questions: QuizQuestion[]): ShuffledQuestion[] {
+  return questions.map(q => {
+    const indexed = q.options.map((opt, i) => ({ opt, orig: i }));
+    for (let j = indexed.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [indexed[j], indexed[k]] = [indexed[k], indexed[j]];
+    }
+    const correctIdx = indexed.findIndex(x => x.orig === q.answer);
+    return { question: q.question, options: indexed.map(x => x.opt), correctIdx, explanation: q.explanation };
+  });
+}
+
 function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore }: QuizSectionProps) {
+  const [shuffled, setShuffled] = useState<ShuffledQuestion[]>(() => shuffleQuestions(questions));
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState<boolean[]>(new Array(questions.length).fill(false));
@@ -91,10 +115,16 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
   const [showResult, setShowResult] = useState(false);
   const [started, setStarted] = useState(false);
   if (!questions || questions.length === 0) return null;
-  const q = questions[current];
-  const isCorrect = selected !== null && selected === q.answer;
+  const q = shuffled[current];
+  const isCorrect = selected !== null && selected === q.correctIdx;
   const isAnswered = answered[current];
-  const retry = () => { setCurrent(0); setSelected(null); setAnswered(new Array(questions.length).fill(false)); setUserAnswers(new Array(questions.length).fill(null)); setShowResult(false); };
+  const retry = () => {
+    setShuffled(shuffleQuestions(questions));
+    setCurrent(0); setSelected(null);
+    setAnswered(new Array(questions.length).fill(false));
+    setUserAnswers(new Array(questions.length).fill(null));
+    setShowResult(false);
+  };
 
   const handleSelect = (idx: number) => {
     if (isAnswered) return;
@@ -103,13 +133,13 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
     const nu = [...userAnswers]; nu[current] = idx; setUserAnswers(nu);
   };
   const handleNext = () => {
-    if (current < questions.length - 1) { setCurrent(current + 1); setSelected(userAnswers[current + 1]); }
+    if (current < shuffled.length - 1) { setCurrent(current + 1); setSelected(userAnswers[current + 1]); }
     else {
       const finalAnswers = [...userAnswers]; finalAnswers[current] = selected;
-      const correct = finalAnswers.filter((a, i) => a === questions[i].answer).length;
-      const score = Math.round((correct / questions.length) * 100);
+      const correct = finalAnswers.filter((a, i) => a === shuffled[i].correctIdx).length;
+      const score = Math.round((correct / shuffled.length) * 100);
       setShowResult(true);
-      onQuizDone(score, correct, questions.length);
+      onQuizDone(score, correct, shuffled.length);
     }
   };
 
@@ -142,10 +172,10 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
     </div>
   );
 
-  const totalCorrect = userAnswers.filter((a, i) => a === questions[i].answer).length;
-  const scorePercent = Math.round((totalCorrect / questions.length) * 100);
+  const totalCorrect = userAnswers.filter((a, i) => a === shuffled[i].correctIdx).length;
+  const scorePercent = Math.round((totalCorrect / shuffled.length) * 100);
   const isPassed = scorePercent >= 60;
-  const isPerfect = totalCorrect === questions.length;
+  const isPerfect = totalCorrect === shuffled.length;
 
   if (showResult) return (
     <div style={{ borderRadius: 18, border: `1px solid ${isPassed ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, background: isPassed ? "rgba(34,197,94,0.04)" : "rgba(239,68,68,0.04)", marginBottom: 24 }}>
@@ -153,11 +183,11 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
         <div style={{ fontSize: 50, marginBottom: 12 }}>{isPerfect ? "🏆" : isPassed ? "👍" : "📚"}</div>
         <div style={{ fontSize: 20, fontWeight: 900, color: "var(--text-main,#e8eaf0)", marginBottom: 6, letterSpacing: "-0.03em" }}>{isPerfect ? "Sempurna!" : isPassed ? "Lulus!" : "Belum Lulus"}</div>
         <div style={{ fontSize: 40, fontWeight: 900, color: isPassed ? "#22c55e" : "#ef4444", marginBottom: 4 }}>{scorePercent}%</div>
-        <div style={{ fontSize: 13, opacity: 0.4, color: "var(--text-main,#e8eaf0)", marginBottom: 16 }}>{totalCorrect} dari {questions.length} benar</div>
+        <div style={{ fontSize: 13, opacity: 0.4, color: "var(--text-main,#e8eaf0)", marginBottom: 16 }}>{totalCorrect} dari {shuffled.length} benar</div>
         {!isPassed && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 20, padding: "8px 16px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", display: "inline-block" }}>Minimal 60% untuk menandai selesai. Coba lagi!</div>}
         {isPassed && <div style={{ fontSize: 12, color: "#22c55e", marginBottom: 20, padding: "8px 16px", borderRadius: 8, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)", display: "inline-block" }}>✅ Skor tersimpan. Kamu bisa tandai pelajaran selesai!</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, textAlign: "left" }}>
-          {questions.map((qq, i) => { const ua = userAnswers[i]; const ok = ua === qq.answer; return (<div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: ok ? "rgba(34,197,94,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, display: "flex", alignItems: "flex-start", gap: 10 }}><span style={{ flexShrink: 0 }}>{ok ? "✅" : "❌"}</span><span style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.8, lineHeight: 1.5 }}>{qq.question}</span></div>); })}
+          {shuffled.map((qq, i) => { const ua = userAnswers[i]; const ok = ua === qq.correctIdx; return (<div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: ok ? "rgba(34,197,94,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, display: "flex", alignItems: "flex-start", gap: 10 }}><span style={{ flexShrink: 0 }}>{ok ? "✅" : "❌"}</span><span style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.8, lineHeight: 1.5 }}>{qq.question}</span></div>); })}
         </div>
         <button onClick={retry} style={{ padding: "11px 24px", borderRadius: 11, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "var(--text-main,#e8eaf0)" }}>🔄 Ulangi Quiz</button>
       </div>
@@ -168,14 +198,14 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
     <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", marginBottom: 24 }}>
       <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}><span>🧠</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-main,#e8eaf0)" }}>Quiz</span></div>
-        <div style={{ display: "flex", gap: 5 }}>{questions.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: answered[i] ? (userAnswers[i] === questions[i].answer ? "#22c55e" : "#ef4444") : i === current ? accent : "rgba(255,255,255,0.13)", transition: "all .2s" }} />)}</div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: accent }}>{current + 1} / {questions.length}</span>
+        <div style={{ display: "flex", gap: 5 }}>{shuffled.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: answered[i] ? (userAnswers[i] === shuffled[i].correctIdx ? "#22c55e" : "#ef4444") : i === current ? accent : "rgba(255,255,255,0.13)", transition: "all .2s" }} />)}</div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: accent }}>{current + 1} / {shuffled.length}</span>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <p style={{ fontSize: 15, fontWeight: 700, color: "var(--text-main,#e8eaf0)", lineHeight: 1.6, marginBottom: 16 }}>{q.question}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
           {q.options.map((opt, idx) => {
-            const isSel = selected === idx; const isRight = idx === q.answer;
+            const isSel = selected === idx; const isRight = idx === q.correctIdx;
             let bg = "rgba(255,255,255,0.03)", border = "1px solid rgba(255,255,255,0.08)", col = "var(--text-main,#e8eaf0)"; let op: number | undefined = 0.72;
             if (isAnswered) { if (isRight) { bg = "rgba(34,197,94,0.1)"; border = "1px solid rgba(34,197,94,0.35)"; col = "#22c55e"; op = 1; } else if (isSel) { bg = "rgba(239,68,68,0.1)"; border = "1px solid rgba(239,68,68,0.35)"; col = "#ef4444"; op = 1; } else { op = 0.3; } }
             else if (isSel) { bg = `${accent}15`; border = `1px solid ${accent}50`; col = accent; op = 1; }
@@ -196,8 +226,8 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
   );
 }
 
-export default function LessonPage({ params }: { params: Promise<{ id: string; lessonId: string }> }) {
-  const { id, lessonId } = use(params);
+export default function LessonPage() {
+  const { id, lessonId } = useParams<{ id: string; lessonId: string }>();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [lesson, setLesson] = useState<LessonDetail | null>(null);

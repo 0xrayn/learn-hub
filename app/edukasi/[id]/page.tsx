@@ -1,73 +1,558 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { fetchModuleById, fetchModules, type Module } from "../../lib/supabase-data";
 import { useAuth } from "../../context/AuthContext";
 import { createClient } from "../../lib/supabase";
 
-// ─── Certificate component (rendered for download) ────────────────
-function CertificateModal({ modul, userName, onClose }: { modul: Module; userName: string; onClose: () => void }) {
-  const handlePrint = () => window.print();
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
-      <style>{`
-        @media print {
-          body > *:not(#cert-print-root) { display: none !important; }
-          #cert-print-root { display: block !important; position: fixed; inset: 0; }
-          .cert-no-print { display: none !important; }
-        }
-      `}</style>
-      <div id="cert-print-root" onClick={e => e.stopPropagation()} style={{ background: "#0a0a14", borderRadius: 20, overflow: "hidden", maxWidth: 740, width: "100%", border: `1px solid ${modul.accent}30`, boxShadow: `0 32px 80px rgba(0,0,0,0.6), 0 0 60px ${modul.accent}15` }}>
-        {/* Certificate content */}
-        <div style={{ padding: "48px 52px 40px", textAlign: "center", background: `radial-gradient(ellipse at 50% -10%, ${modul.accent}12, transparent 65%)` }}>
-          {/* Top deco */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 36 }}>
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${modul.accent}40)` }} />
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.2em", color: modul.accent, opacity: 0.7, textTransform: "uppercase" as const }}>Certificate of Completion</span>
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${modul.accent}40, transparent)` }} />
-          </div>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
-          <div style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.45, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 10 }}>Sertifikat Penyelesaian</div>
-          <div style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.5, marginBottom: 8 }}>Diberikan kepada</div>
-          <div style={{ fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", marginBottom: 16, lineHeight: 1.1 }}>{userName}</div>
-          <div style={{ fontSize: 14, color: "var(--text-main,#e8eaf0)", opacity: 0.5, marginBottom: 6 }}>atas keberhasilannya menyelesaikan</div>
-          <div style={{ fontSize: "clamp(1.1rem,2.5vw,1.5rem)", fontWeight: 800, color: modul.accent, letterSpacing: "-0.02em", marginBottom: 6, lineHeight: 1.3 }}>{modul.title}</div>
-          <div style={{ fontSize: 12, color: "var(--text-main,#e8eaf0)", opacity: 0.35, marginBottom: 36 }}>Modul {modul.num} · LearnHub</div>
-          {/* Decorative line */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${modul.accent}25)` }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: modul.accent, opacity: 0.5 }} />
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${modul.accent}25, transparent)` }} />
-          </div>
-          {/* Date + Level */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[
-              { label: "Tanggal", value: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) },
-              { label: "Level", value: modul.level },
-              { label: "Pelajaran", value: `${modul.lessons.length} Pelajaran` },
-            ].map(s => (
-              <div key={s.label} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--text-main,#e8eaf0)", opacity: 0.3, textTransform: "uppercase" as const, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-main,#e8eaf0)", opacity: 0.75 }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Actions */}
-        <div className="cert-no-print" style={{ padding: "16px 24px", borderTop: `1px solid ${modul.accent}18`, display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "var(--text-main,#e8eaf0)" }}>Tutup</button>
-          <button onClick={handlePrint} style={{ padding: "9px 22px", borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: "pointer", border: "none", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, color: "#000" }}>⬇ Simpan / Print</button>
-        </div>
-      </div>
-    </div>
-  );
+// ─── Certificate — opens in a new tab (no modal) ─────────────────
+function openCertificateTab(modul: Module, userName: string) {
+  const certId = `LH-${modul.id}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  const dateStr = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const accent = modul.accent || "#f59e0b";
+  // Derive a darker shade for the left sidebar
+  const accentDark = "#b8860b";
+
+  const tab = window.open("", "_blank");
+  if (!tab) return;
+  tab.document.write(`<!DOCTYPE html>
+<html lang="id"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sertifikat — ${userName} | LearnHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+/* ── Screen layout ── */
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #1c1c1e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-export default function EdukasiDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+/* ── Toolbar ── */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  height: 48px;
+  background: #111;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.toolbar-left { display:flex; align-items:center; gap:10px; }
+.tb-dot { width:10px;height:10px;border-radius:50%; }
+.tb-dot.red{background:#ff5f57;} .tb-dot.yellow{background:#febc2e;} .tb-dot.green{background:#28c840;}
+.toolbar-title { font-size:12px; color:rgba(255,255,255,0.45); margin-left:4px; }
+.toolbar-title strong { color:rgba(255,255,255,0.75); font-weight:600; }
+.toolbar-right { display:flex; align-items:center; gap:8px; }
+.hint { font-size:11px; color:rgba(255,255,255,0.25); white-space:nowrap; }
+.btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.8; }
+.btn-ghost {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-primary {
+  background: ${accent};
+  color: #000;
+  font-weight: 700;
+}
+
+/* ── Canvas area ── */
+.canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: #2a2a2c;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  /* negative margin compensates transform collapse so no scroll */
+  overflow: hidden;
+}
+
+/* ── The certificate — A4 landscape in mm, works the same on screen and print ── */
+.cert {
+  width: 297mm;
+  height: 210mm;
+  /* scale down for screen: 0.72 * 210mm ~= 151mm height, fits viewport */
+  transform: scale(0.72);
+  transform-origin: center center;
+  /* compensate layout space lost by transform */
+  margin-top: calc((210mm * 0.72 - 210mm) / 2);
+  margin-bottom: calc((210mm * 0.72 - 210mm) / 2);
+  margin-left: calc((297mm * 0.72 - 297mm) / 2);
+  margin-right: calc((297mm * 0.72 - 297mm) / 2);
+  position: relative;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.15),
+    0 24px 80px rgba(0,0,0,0.5),
+    0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* ── Top gold band ── */
+.cert-top-band {
+  height: 10px;
+  background: linear-gradient(90deg, #8b6914 0%, ${accent} 20%, #e8c97a 50%, ${accent} 80%, #8b6914 100%);
+  flex-shrink: 0;
+}
+
+/* ── Body split: left content + right panel ── */
+.cert-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Left content area ── */
+.cert-left {
+  flex: 1;
+  padding: 38px 44px 32px 52px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* subtle guilloché-like bg */
+.cert-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(201,168,76,0.05) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(201,168,76,0.04) 40px);
+  pointer-events: none;
+}
+
+/* ── Org header ── */
+.org-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
+.org-emblem {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, ${accent}, #c9a84c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900; color: #1a1612;
+  letter-spacing: -0.5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+.org-text { line-height: 1.3; }
+.org-name {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #1a1612;
+  text-transform: uppercase;
+}
+.org-sub {
+  font-size: 9px; color: #999;
+  letter-spacing: 0.06em;
+}
+
+/* ── Certificate type ── */
+.cert-type {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 6px;
+}
+.cert-type-eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #bbb;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.cert-type-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 38px;
+  font-weight: 600;
+  color: #1a1612;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+.cert-type-title span { color: ${accent}; }
+
+/* ── Decorative rule ── */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 20px;
+  position: relative;
+  z-index: 1;
+}
+.rule-line { flex: 1; height: 1px; background: linear-gradient(90deg, ${accent}80, transparent); }
+.rule-diamond {
+  width: 6px; height: 6px;
+  background: ${accent};
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* ── Recipient block ── */
+.recipient-block { position: relative; z-index: 1; margin-bottom: 14px; }
+.given-to {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #aaa;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.recipient-name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+}
+.name-rule {
+  width: 80px; height: 2px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, ${accent}, #c9a84c, transparent);
+}
+
+/* ── Completion statement ── */
+.completion {
+  font-size: 10.5px;
+  color: #555;
+  line-height: 1.75;
+  max-width: 320px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: auto;
+}
+.completion strong { color: #222; font-weight: 700; }
+
+/* ── Signatures row ── */
+.sigs {
+  display: flex;
+  gap: 32px;
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
+}
+.sig { text-align: left; }
+.sig-name-script {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 600;
+  color: #333;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.sig-line {
+  width: 90px; height: 1px;
+  background: #ccc;
+  margin-bottom: 5px;
+}
+.sig-label { font-size: 8.5px; font-weight: 700; color: #444; letter-spacing: 0.04em; }
+.sig-role { font-size: 8px; color: #999; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
+
+/* ── Right panel ── */
+.cert-right {
+  width: 260px;
+  flex-shrink: 0;
+  background: #f7f4ee;
+  border-left: 1px solid #e8e0d0;
+  display: flex;
+  flex-direction: column;
+  padding: 38px 26px 28px;
+  gap: 16px;
+  position: relative;
+}
+/* vertical accent stripe */
+.cert-right::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, ${accent}, #c9a84c 50%, transparent);
+}
+
+/* ── Module panel ── */
+.module-panel {
+  background: #fff;
+  border: 1px solid #e0d8c8;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.module-label {
+  font-size: 7.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: ${accent};
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.module-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1612;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.module-sub { font-size: 9px; color: #aaa; }
+
+/* ── Stats ── */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stat-box {
+  background: #fff;
+  border: 1px solid #e0d8c8;
+  border-radius: 6px;
+  padding: 10px 10px 8px;
+  text-align: center;
+}
+.stat-val { font-size: 11px; font-weight: 800; color: #1a1612; margin-bottom: 2px; }
+.stat-lbl { font-size: 7px; letter-spacing: 0.15em; text-transform: uppercase; color: #aaa; font-weight: 600; }
+
+/* ── Cert ID ── */
+.certid-box {
+  background: #fff;
+  border: 1px solid #e0d8c8;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.certid-label { font-size: 7px; letter-spacing: 0.2em; text-transform: uppercase; color: #bbb; font-weight: 700; margin-bottom: 4px; }
+.certid-val { font-family: 'Courier New', monospace; font-size: 11px; color: #333; font-weight: 600; letter-spacing: 0.04em; }
+
+/* ── Seal ── */
+.seal-area {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.seal {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 2px solid ${accent};
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px;
+  position: relative;
+  background: radial-gradient(circle, rgba(201,168,76,0.08), transparent);
+}
+.seal::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px dashed rgba(201,168,76,0.4);
+}
+.seal-icon { font-size: 20px; line-height: 1; }
+.seal-text { font-size: 6px; letter-spacing: 0.15em; text-transform: uppercase; color: ${accent}; font-weight: 800; text-align: center; }
+
+/* ── Bottom gold band ── */
+.cert-bottom-band {
+  height: 6px;
+  background: linear-gradient(90deg, #8b6914 0%, ${accent} 20%, #e8c97a 50%, ${accent} 80%, #8b6914 100%);
+  flex-shrink: 0;
+}
+
+/* ═══ PRINT ═══ */
+@page { size: A4 landscape; margin: 0; }
+@media print {
+  html, body {
+    width: 297mm; height: 210mm;
+    margin: 0 !important; padding: 0 !important;
+    background: white !important; overflow: hidden !important;
+  }
+  .toolbar { display: none !important; }
+  .canvas {
+    width: 297mm !important; height: 210mm !important;
+    padding: 0 !important; margin: 0 !important;
+    background: white !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+  }
+  .cert {
+    width: 297mm !important; height: 210mm !important;
+    transform: none !important; margin: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+</style>
+
+</head><body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="tb-dot red"></div>
+    <div class="tb-dot yellow"></div>
+    <div class="tb-dot green"></div>
+    <span class="toolbar-title">Sertifikat — <strong>${userName}</strong> &middot; ${modul.title}</span>
+  </div>
+  <div class="toolbar-right">
+    <span class="hint">Simpan sebagai PDF: Print → Save as PDF</span>
+    <button class="btn btn-ghost" onclick="window.close()">Tutup</button>
+    <button class="btn btn-primary" onclick="window.print()">🖨 Print / PDF</button>
+  </div>
+</div>
+
+<!-- Canvas -->
+<div class="canvas">
+<div class="cert-scaler">
+<div class="cert">
+
+  <!-- Top band -->
+  <div class="cert-top-band"></div>
+
+  <!-- Body -->
+  <div class="cert-body">
+
+    <!-- LEFT -->
+    <div class="cert-left">
+
+      <!-- Org header -->
+      <div class="org-header">
+        <div class="org-emblem">LH</div>
+        <div class="org-text">
+          <div class="org-name">LearnHub</div>
+          <div class="org-sub">Bitcoin &amp; Blockchain Education Platform</div>
+        </div>
+      </div>
+
+      <!-- Cert type -->
+      <div class="cert-type">
+        <div class="cert-type-eyebrow">Dokumen Resmi · Official Document</div>
+        <div class="cert-type-title">Sertifikat<br/><span>Penyelesaian</span></div>
+      </div>
+
+      <!-- Rule -->
+      <div class="rule">
+        <div class="rule-diamond"></div>
+        <div class="rule-line"></div>
+      </div>
+
+      <!-- Recipient -->
+      <div class="recipient-block">
+        <div class="given-to">Dengan bangga diberikan kepada</div>
+        <div class="recipient-name">${userName}</div>
+        <div class="name-rule"></div>
+      </div>
+
+      <!-- Completion text -->
+      <div class="completion">
+        Telah berhasil menyelesaikan seluruh materi pembelajaran dalam kurikulum
+        <strong>${modul.title}</strong> — Modul ${modul.num} dari program
+        <strong>Kurikulum Bitcoin &amp; Blockchain</strong> yang diselenggarakan oleh LearnHub.
+      </div>
+
+      <!-- Signatures -->
+      <div class="sigs">
+        <div class="sig">
+          <div class="sig-name-script">LearnHub</div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Platform LearnHub</div>
+          <div class="sig-role">Penyelenggara</div>
+        </div>
+        <div class="sig">
+          <div class="sig-name-script">Instruktur</div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Tim Instruktur</div>
+          <div class="sig-role">Pengajar</div>
+        </div>
+      </div>
+
+    </div><!-- /cert-left -->
+
+    <!-- RIGHT PANEL -->
+    <div class="cert-right">
+
+      <div class="module-panel">
+        <div class="module-label">Modul ${modul.num} · Kurikulum</div>
+        <div class="module-title">${modul.title}</div>
+        <div class="module-sub">Level ${modul.level} &nbsp;·&nbsp; ${modul.lessons.length} Sesi</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-box" style="grid-column:1/-1">
+          <div class="stat-val">${dateStr}</div>
+          <div class="stat-lbl">Tanggal Kelulusan</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">${modul.level}</div>
+          <div class="stat-lbl">Level</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">${modul.lessons.length} Sesi</div>
+          <div class="stat-lbl">Pelajaran</div>
+        </div>
+      </div>
+
+      <div class="certid-box">
+        <div class="certid-label">Nomor Sertifikat</div>
+        <div class="certid-val">${certId}</div>
+      </div>
+
+      <div class="seal-area">
+        <div class="seal">
+          <div class="seal-icon">🎓</div>
+          <div class="seal-text">Verified<br/>LearnHub</div>
+        </div>
+      </div>
+
+    </div><!-- /cert-right -->
+
+  </div><!-- /cert-body -->
+
+  <!-- Bottom band -->
+  <div class="cert-bottom-band"></div>
+
+</div><!-- /cert -->
+</div><!-- /cert-scaler -->
+</div><!-- /canvas -->
+
+</body></html>`);
+  tab.document.close();
+}
+
+export default function EdukasiDetail() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -78,7 +563,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
   const [progressLoading, setProgressLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showCert, setShowCert] = useState(false);
+  
   const [coverLoaded, setCoverLoaded] = useState(false);
 
   useEffect(() => {
@@ -93,7 +578,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
   // Auto-show certificate if ?completed=true
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("completed=true") && user && modul) {
-      setShowCert(true);
+      openCertificateTab(modul, (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Pengguna");
     }
   }, [user, modul]);
 
@@ -143,7 +628,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
     <>
       <Navbar />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
-      {showCert && <CertificateModal modul={modul} userName={userName} onClose={() => setShowCert(false)} />}
+      
 
       <main style={{ minHeight: "100vh", paddingTop: 56 }}>
 
@@ -203,7 +688,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                 ))}
                 {/* Sertifikat button */}
                 {moduleDone && user && (
-                  <button onClick={() => setShowCert(true)} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 11, fontSize: 13, fontWeight: 800, cursor: "pointer", border: `1px solid ${modul.accent}40`, background: `${modul.accent}12`, color: modul.accent }}>
+                  <button onClick={() => openCertificateTab(modul, (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Pengguna")} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 11, fontSize: 13, fontWeight: 800, cursor: "pointer", border: `1px solid ${modul.accent}40`, background: `${modul.accent}12`, color: modul.accent }}>
                     🎓 Lihat Sertifikat
                   </button>
                 )}
@@ -236,7 +721,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                 <div style={{ fontWeight: 900, color: "var(--text-main,#e8eaf0)", fontSize: 15, marginBottom: 4 }}>Selamat! Kamu telah menyelesaikan modul ini.</div>
                 <div style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.5 }}>Download sertifikat sebagai bukti pencapaianmu.</div>
               </div>
-              <button onClick={() => setShowCert(true)} style={{ padding: "10px 22px", borderRadius: 11, fontSize: 13, fontWeight: 800, cursor: "pointer", border: "none", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, color: "#000" }}>
+              <button onClick={() => openCertificateTab(modul, (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Pengguna")} style={{ padding: "10px 22px", borderRadius: 11, fontSize: 13, fontWeight: 800, cursor: "pointer", border: "none", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, color: "#000" }}>
                 🎓 Ambil Sertifikat
               </button>
             </div>
@@ -303,7 +788,7 @@ export default function EdukasiDetail({ params }: { params: Promise<{ id: string
                 </button>
               ) : (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                  <button onClick={() => setShowCert(true)} style={{ padding: "13px 28px", borderRadius: 13, fontSize: 14, fontWeight: 800, cursor: "pointer", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, border: "none", color: "#000" }}>🎓 Ambil Sertifikat</button>
+                  <button onClick={() => openCertificateTab(modul, (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Pengguna")} style={{ padding: "13px 28px", borderRadius: 13, fontSize: 14, fontWeight: 800, cursor: "pointer", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, border: "none", color: "#000" }}>🎓 Ambil Sertifikat</button>
                   <button onClick={async () => {
                     setSaving(true);
                     const supabase = createClient();

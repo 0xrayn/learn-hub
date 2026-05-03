@@ -1,15 +1,15 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { fetchArticleById, fetchArticles, type Article } from "../../lib/supabase-data";
 import { useAuth } from "../../context/AuthContext";
 import { createClient } from "../../lib/supabase";
 
-export default function ArtikelDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ArtikelDetail() {
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
 
   const [article, setArticle] = useState<Article | null>(null);

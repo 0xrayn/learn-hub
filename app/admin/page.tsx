@@ -256,6 +256,124 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
 }
 
 /* ── Modul Form Modal ─────────────────────────────────────────── */
+/* ── Markdown WYSIWYG Editor ─────────────────────────────────────── */
+function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [mode, setMode] = useState<"write" | "preview">("write");
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const GOLD2 = "#f59e0b";
+
+  const insertAt = (before: string, after: string = "", placeholder: string = "") => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const sel = value.slice(start, end) || placeholder;
+    const newVal = value.slice(0, start) + before + sel + after + value.slice(end);
+    onChange(newVal);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    }, 0);
+  };
+
+  const tools = [
+    { icon: "H1", title: "Heading 1", action: () => insertAt("# ", "", "Judul") },
+    { icon: "H2", title: "Heading 2", action: () => insertAt("## ", "", "Sub Judul") },
+    { icon: "B", title: "Bold", action: () => insertAt("**", "**", "teks tebal"), style: { fontWeight: 900 } },
+    { icon: "I", title: "Italic", action: () => insertAt("*", "*", "teks miring"), style: { fontStyle: "italic" } },
+    { icon: "`", title: "Code", action: () => insertAt("`", "`", "kode") },
+    { icon: "≡", title: "Bullet List", action: () => insertAt("- ", "", "item") },
+    { icon: "1.", title: "Numbered List", action: () => insertAt("1. ", "", "item") },
+    { icon: "❝", title: "Blockquote", action: () => insertAt("> ", "", "kutipan") },
+    { icon: "⊟", title: "Code Block", action: () => insertAt("```\n", "\n```", "kode di sini") },
+    { icon: "⊞", title: "Tabel", action: () => insertAt("| Kolom 1 | Kolom 2 | Kolom 3 |\n|---------|---------|----------|\n| ", " | data | data |", "data") },
+    { icon: "—", title: "Divider", action: () => { onChange(value + "\n---\n"); } },
+  ];
+
+  // Simple markdown preview
+  const renderPreview = (md: string) => {
+    const lines = md.split("\n");
+    const els: React.ReactNode[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.startsWith("### ")) els.push(<h3 key={i} style={{ color: "#f0f0f5", margin: "16px 0 6px", fontSize: 13 }}>{line.slice(4)}</h3>);
+      else if (line.startsWith("## ")) els.push(<h2 key={i} style={{ color: "#f0f0f5", margin: "20px 0 8px", fontSize: 15, borderLeft: `3px solid ${GOLD2}`, paddingLeft: 10 }}>{line.slice(3)}</h2>);
+      else if (line.startsWith("# ")) els.push(<h1 key={i} style={{ color: "#f0f0f5", margin: "22px 0 10px", fontSize: 18 }}>{line.slice(2)}</h1>);
+      else if (line.startsWith("> ")) els.push(<blockquote key={i} style={{ margin: "10px 0", padding: "10px 14px", borderLeft: `3px solid ${GOLD2}`, background: `${GOLD2}10`, borderRadius: "0 8px 8px 0", color: "#f0f0f5", opacity: 0.75, fontSize: 13 }}>{line.slice(2)}</blockquote>);
+      else if (line.startsWith("- ") || line.startsWith("* ")) {
+        const items: string[] = [];
+        while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* "))) { items.push(lines[i].slice(2)); i++; }
+        els.push(<ul key={`ul${i}`} style={{ margin: "8px 0", paddingLeft: 18 }}>{items.map((it, j) => <li key={j} style={{ color: "#f0f0f5", fontSize: 13, opacity: 0.8, marginBottom: 3 }}>{it}</li>)}</ul>);
+        continue;
+      } else if (line.startsWith("|") && line.endsWith("|")) {
+        const tls: string[] = [];
+        while (i < lines.length && lines[i].startsWith("|") && lines[i].endsWith("|")) { tls.push(lines[i]); i++; }
+        const rows = tls.filter(r => !/^\|[\s\-:|]+\|$/.test(r));
+        const pr = (r: string) => r.split("|").slice(1,-1).map(c => c.trim());
+        if (rows.length > 0) {
+          const hd = pr(rows[0]); const bd = rows.slice(1);
+          els.push(<div key={`t${i}`} style={{ margin:"12px 0", overflowX:"auto", borderRadius:8, border:"1px solid rgba(255,255,255,0.1)" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}><thead><tr style={{ background:`${GOLD2}18` }}>{hd.map((h,hi) => <th key={hi} style={{ padding:"8px 12px", textAlign:"left", color:GOLD2, fontWeight:700, borderBottom:"1px solid rgba(255,255,255,0.1)" }}>{h}</th>)}</tr></thead><tbody>{bd.map((r,ri) => <tr key={ri} style={{ borderBottom:"1px solid rgba(255,255,255,0.05)" }}>{pr(r).map((c,ci) => <td key={ci} style={{ padding:"7px 12px", color:"#f0f0f5", opacity:0.75 }}>{c}</td>)}</tr>)}</tbody></table></div>);
+        }
+        continue;
+      } else if (line.startsWith("```")) {
+        const cls: string[] = []; i++;
+        while (i < lines.length && !lines[i].startsWith("```")) { cls.push(lines[i]); i++; }
+        els.push(<pre key={`cd${i}`} style={{ margin:"12px 0", padding:"12px 14px", borderRadius:8, background:"rgba(0,0,0,0.4)", border:"1px solid rgba(255,255,255,0.08)", fontSize:12, color:"#e8eaf0", overflowX:"auto", fontFamily:"monospace", lineHeight:1.6 }}>{cls.join("\n")}</pre>);
+      } else if (line === "---") els.push(<hr key={i} style={{ border:"none", borderTop:"1px solid rgba(255,255,255,0.1)", margin:"16px 0" }} />);
+      else if (line.trim() === "") els.push(<div key={i} style={{ height:6 }} />);
+      else if (line.trim()) {
+        const bold = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>").replace(/`(.+?)`/g, "<code style='background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px;font-family:monospace'>$1</code>");
+        els.push(<p key={i} style={{ color:"#f0f0f5", fontSize:13, opacity:0.8, lineHeight:1.8, margin:"4px 0" }} dangerouslySetInnerHTML={{ __html: bold }} />);
+      }
+      i++;
+    }
+    return els;
+  };
+
+  const inp2: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f5", boxSizing: "border-box" };
+
+  return (
+    <div style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, overflow: "hidden", background: "rgba(0,0,0,0.25)" }}>
+      {/* Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 1, padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", flexWrap: "wrap" }}>
+        {tools.map((t, ti) => (
+          <button key={ti} title={t.title} onClick={t.action} type="button"
+            style={{ padding: "5px 9px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none", background: "transparent", color: "rgba(255,255,255,0.5)", transition: "all .12s", ...(t.style || {}) }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${GOLD2}18`; (e.currentTarget as HTMLButtonElement).style.color = GOLD2; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.5)"; }}>
+            {t.icon}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+          {(["write", "preview"] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)} type="button"
+              style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, cursor: "pointer", border: "none", background: mode === m ? `${GOLD2}20` : "transparent", color: mode === m ? GOLD2 : "rgba(255,255,255,0.35)", letterSpacing: "0.04em", textTransform: "uppercase" as const }}>
+              {m === "write" ? "✏ Tulis" : "👁 Preview"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Editor / Preview */}
+      {mode === "write" ? (
+        <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)}
+          style={{ ...inp2, minHeight: 180, resize: "vertical", fontFamily: "\"Fira Code\", \"Cascadia Code\", monospace", fontSize: 12.5, lineHeight: 1.75, borderRadius: 0, border: "none", background: "transparent", display: "block" }}
+          placeholder={"## Judul Materi\n\nTulis penjelasan di sini...\n\n- Poin 1\n- Poin 2\n\n| Kolom A | Kolom B |\n|---------|----------|\n| data    | data    |\n\n**Tebal** dan *miring* didukung."} />
+      ) : (
+        <div style={{ minHeight: 180, padding: "14px 16px", overflowY: "auto", maxHeight: 400 }}>
+          {value.trim() ? renderPreview(value) : <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 13, fontStyle: "italic" }}>Belum ada konten...</p>}
+        </div>
+      )}
+      {/* Footer */}
+      <div style={{ padding: "4px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", letterSpacing: "0.08em" }}>MARKDOWN EDITOR</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>{value.length} karakter · {value.split("\n").length} baris</span>
+      </div>
+    </div>
+  );
+}
+
 function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose: () => void; onSaved: () => void; }) {
   const isNew = !mod;
   const [form, setForm] = useState<Partial<DbModule>>(mod || { num: "01", icon: "₿", title: "", description: "", long_desc: "", duration: "30 mnt", level: "Pemula", accent: "#f59e0b", level_color: "#22c55e", published: true, sort_order: 0 });
@@ -450,8 +568,8 @@ function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose:
                               <div style={{ fontSize: 10, opacity: 0.3, marginTop: 4, color: "#f0f0f5" }}>Kosongkan jika belum ada video — konten tetap bisa ditambah di bawah</div>
                             </div>
                             <div>
-                              <label style={lbl}>Materi Teks (Markdown)</label>
-                              <textarea value={l.content || ""} onChange={(e) => setLesson(i, "content", e.target.value)} style={{ ...inp, minHeight: 100, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }} placeholder={"## Judul Materi\n\nTulis penjelasan di sini...\n\n- Poin 1\n- Poin 2\n\n**Tebal** dan *miring* didukung."} />
+                              <label style={lbl}>Materi Teks (Editor Markdown)</label>
+                              <MarkdownEditor value={l.content || ""} onChange={(v) => setLesson(i, "content", v)} />
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <input type="checkbox" id={`free-${i}`} checked={l.is_free || false} onChange={(e) => setLesson(i, "is_free", e.target.checked)} style={{ width: 14, height: 14, cursor: "pointer" }} />
