@@ -441,3 +441,28 @@ body::after {
   .font-mono-styled { word-break: break-word; }
   h1, h2, h3 { overflow-wrap: break-word; hyphens: auto; }
 }
+
+/* ── Lesson page responsive ── */
+@media (max-width: 768px) {
+  .lesson-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .lesson-sidebar {
+    display: none !important;
+  }
+}
+
+/* ── Global search backdrop ── */
+@media (max-width: 640px) {
+  .search-modal {
+    padding: 60px 12px 12px !important;
+  }
+}
+
+/* ── Edukasi hero: tighten on mobile ── */
+@media (max-width: 640px) {
+  .edukasi-hero-stats {
+    gap: 16px !important;
+    padding: 12px 16px !important;
+  }
+}

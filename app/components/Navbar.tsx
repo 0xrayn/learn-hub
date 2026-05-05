@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import GlobalSearch from "./GlobalSearch";
 
 const themes = [
   { name: "dark",   label: "Dark",   icon: "🌑", desc: "Luxury Dark" },
@@ -26,6 +27,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [userDropOpen, setUserDropOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -90,6 +92,7 @@ export default function Navbar() {
   };
 
   return (
+    <>
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
       background: navBg,
@@ -161,6 +164,18 @@ export default function Navbar() {
 
         {/* Right controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+
+          {/* Search button */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            title="Cari (Ctrl+K)"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: isMobile ? "7px" : "6px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", cursor: "pointer", color: "var(--text-main,#e8eaf0)", fontSize: 13, transition: "background .15s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+          >
+            <span style={{ fontSize: 15 }}>🔍</span>
+            {!isMobile && <span style={{ fontSize: 12, opacity: 0.5 }}>Ctrl K</span>}
+          </button>
 
           {/* Live badge */}
           {!isMobile && (
@@ -398,5 +413,19 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    <GlobalSearchWithShortcut open={searchOpen} onClose={() => setSearchOpen(false)} onOpen={() => setSearchOpen(true)} />
+    </>
   );
+}
+
+function GlobalSearchWithShortcut({ open, onClose, onOpen }: { open: boolean; onClose: () => void; onOpen: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); onOpen(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onOpen]);
+
+  return <GlobalSearch open={open} onClose={onClose} />;
 }

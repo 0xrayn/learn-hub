@@ -55,19 +55,49 @@ export default function EdukasiPage() {
     });
   }, [modules, search, levelFilter]);
 
+  const [paywallModule, setPaywallModule] = useState<Module | null>(null);
+
   const modulesCompleted = modules.filter((m) => (progressMap[m.id] || 0) >= m.lessons.length && m.lessons.length > 0).length;
   const totalLessonsCompleted = Object.values(progressMap).reduce((a, b) => a + b, 0);
   const totalLessons = modules.reduce((a, m) => a + m.lessons.length, 0);
 
   const handleModuleClick = (module: Module, idx: number) => {
     const isFree = FREE_MODULE_INDICES.includes(idx);
-    if (!isFree && !user) { router.push("/register"); return; }
+    if (!isFree && !user) { setPaywallModule(module); return; }
     router.push(`/edukasi/${module.id}`);
   };
 
   return (
     <>
       <Navbar />
+      {/* Paywall Modal */}
+      {paywallModule && (
+        <div onClick={() => setPaywallModule(null)} style={{ position: "fixed", inset: 0, zIndex: 9998, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, borderRadius: 22, background: "var(--bg-card,#13141a)", border: "1px solid rgba(167,139,250,0.2)", padding: "32px 28px", textAlign: "center", boxShadow: "0 32px 80px rgba(0,0,0,0.6)" }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 18px" }}>🔒</div>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 900, color: "var(--text-main,#e8eaf0)", marginBottom: 8, letterSpacing: "-0.02em" }}>Modul Premium</h2>
+            <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.5, lineHeight: 1.7, marginBottom: 6 }}>
+              <strong style={{ color: "#a78bfa" }}>{paywallModule.title}</strong> hanya tersedia untuk member.
+            </p>
+            <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.4, lineHeight: 1.6, marginBottom: 24 }}>
+              Daftar gratis untuk akses semua modul, quiz, progress tracking, dan sertifikat.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <Link href="/register" style={{ display: "block", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 800, background: "linear-gradient(135deg, #a78bfa, #06b6d4)", color: "#000", textDecoration: "none" }}>
+                🚀 Daftar Gratis Sekarang
+              </Link>
+              <Link href="/login" style={{ display: "block", padding: "11px 24px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-main,#e8eaf0)", textDecoration: "none" }}>
+                Sudah punya akun? Masuk
+              </Link>
+              <button onClick={() => setPaywallModule(null)} style={{ padding: "9px", borderRadius: 10, fontSize: 12, border: "none", background: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontFamily: "inherit" }}>Batal</button>
+            </div>
+            <div style={{ marginTop: 20, padding: "12px 16px", borderRadius: 11, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
+              <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, marginBottom: 4 }}>✅ 2 Modul Pertama Gratis</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>Coba dulu tanpa perlu daftar. Modul 01 & 02 bebas akses.</div>
+            </div>
+          </div>
+        </div>
+      )}
       <main style={{ minHeight: "100vh", paddingTop: 56 }}>
         {/* ── Hero ── */}
         <div style={{ padding: "52px 20px 44px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "color-mix(in srgb, #a78bfa 4%, transparent)" }}>
@@ -134,7 +164,7 @@ export default function EdukasiPage() {
               <button onClick={() => { setSearch(""); setLevelFilter("Semua"); }} style={{ marginTop: 14, padding: "9px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "var(--text-main,#e8eaf0)" }}>Reset Filter</button>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 22 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: 22 }}>
               {filtered.map((module, idx) => {
                 const globalIdx = modules.findIndex(m => m.id === module.id);
                 const isFree = FREE_MODULE_INDICES.includes(globalIdx);

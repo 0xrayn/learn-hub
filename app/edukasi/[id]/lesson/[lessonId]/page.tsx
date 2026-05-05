@@ -6,6 +6,7 @@ import Navbar from "../../../../components/Navbar";
 import Footer from "../../../../components/Footer";
 import { useAuth } from "../../../../context/AuthContext";
 import { createClient } from "../../../../lib/supabase";
+import DiscussionSection from "../../../../components/DiscussionSection";
 
 interface LessonDetail {
   id: number; module_id: number; title: string; duration: string;
@@ -323,7 +324,8 @@ export default function LessonPage() {
   return (
     <>
       <Navbar />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}} :root{--lesson-accent:${accent};} .lnc:hover{border-color:${accent}50!important;background:rgba(255,255,255,0.04)!important;} .sll:hover>div{background:rgba(255,255,255,0.04)!important;}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}} :root{--lesson-accent:${accent};} .lnc:hover{border-color:${accent}50!important;background:rgba(255,255,255,0.04)!important;} .sll:hover>div{background:rgba(255,255,255,0.04)!important;}
+      @media(max-width:768px){.lesson-grid{grid-template-columns:1fr!important;}.lesson-sidebar{display:none!important;}}`}</style>
       <main style={{ minHeight: "100vh", paddingTop: 56 }}>
         {/* Top progress */}
         <div style={{ position: "fixed", top: 56, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.05)", zIndex: 50 }}>
@@ -339,9 +341,9 @@ export default function LessonPage() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 1060, margin: "0 auto", padding: "32px 20px 80px", display: "grid", gridTemplateColumns: "1fr 290px", gap: 28, alignItems: "start" }}>
+        <div className="lesson-grid" style={{ maxWidth: 1060, margin: "0 auto", padding: "32px 20px 80px", display: "grid", gridTemplateColumns: "minmax(0,1fr) clamp(0px,290px,290px)", gap: 28, alignItems: "start" }}>
           {/* Content */}
-          <div style={{ animation: "fadeUp .45s ease" }}>
+          <div style={{ animation: "fadeUp .45s ease", minWidth: 0 }}>
             {/* Module complete banner */}
             {(allDone || moduleJustCompleted) && module && (
               <div style={{ marginBottom: 22, borderRadius: 18, border: `1px solid ${accent}40`, background: `linear-gradient(135deg,${accent}10,color-mix(in srgb,${accent} 5%,transparent))`, padding: "24px 26px" }}>
@@ -374,6 +376,8 @@ export default function LessonPage() {
             {lesson.content && <div style={{ padding: "26px 28px", borderRadius: 18, background: "rgba(255,255,255,0.018)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}><MarkdownContent content={lesson.content} accent={accent} /></div>}
             {!lesson.video_url && !lesson.content && <div style={{ padding: "48px 20px", borderRadius: 18, border: "1px dashed rgba(255,255,255,0.08)", textAlign: "center", marginBottom: 24 }}><div style={{ fontSize: 36, marginBottom: 10, opacity: 0.3 }}>📝</div><p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.28, fontSize: 13 }}>Konten belum tersedia</p></div>}
             <QuizSection questions={quizQuestions} accent={accent} onQuizDone={handleQuizDone} alreadyPassed={quizPassed} savedScore={savedScore} />
+            {/* Discussion */}
+            <DiscussionSection lessonId={Number(lessonId)} accent={accent} />
             {/* Mark complete */}
             <div style={{ padding: "18px 22px", borderRadius: 16, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 22 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -397,7 +401,7 @@ export default function LessonPage() {
           </div>
 
           {/* Sidebar */}
-          <div style={{ position: "sticky", top: 80 }}>
+          <div className="lesson-sidebar" style={{ position: "sticky", top: 80 }}>
             <div style={{ borderRadius: 16, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", marginBottom: 12 }}>
               <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: `${accent}16`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>📚</div>
