@@ -16,7 +16,7 @@ interface DbLesson { id?: number; title: string; duration: string; sort_order: n
 interface DbQuizQuestion { id?: number; lesson_id?: number; sort_order: number; question: string; options: string[]; answer: number; explanation: string; }
 interface DbModule { id: number; num: string; icon: string; title: string; description: string; long_desc: string; duration: string; level: string; accent: string; level_color: string; published: boolean; sort_order: number; lessons?: DbLesson[]; }
 
-type Tab = "overview" | "users" | "progress" | "bookmarks" | "konten";
+type Tab = "overview" | "users" | "progress" | "bookmarks" | "konten" | "diskusi";
 
 const GOLD = "#f59e0b";
 const CATS = ["Pemula", "Teknologi", "Investasi", "Keamanan", "Sejarah", "Mining", "Lainnya"];
@@ -29,6 +29,7 @@ const TABS: { key: Tab; icon: string; label: string }[] = [
   { key: "progress",  icon: "◈",  label: "Progress Modul" },
   { key: "bookmarks", icon: "◉",  label: "Bookmarks"      },
   { key: "konten",    icon: "✎",  label: "Kelola Konten"  },
+  { key: "diskusi",   icon: "💬",  label: "Diskusi"        },
 ];
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
@@ -680,6 +681,37 @@ export default function AdminPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [userSearch, setUserSearch] = useState("");
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [discLoading, setDiscLoading] = useState(false);
+  const [discSearch, setDiscSearch] = useState("");
+
+  const loadDiscussions = async () => {
+    setDiscLoading(true);
+    const sb = createClient();
+    const { data } = await sb
+      .from("lesson_discussions")
+      .select("*, lesson:module_lessons(title, module_id)")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map((d: any) => d.user_id))];
+      const { data: profiles } = await sb.from("profiles").select("id, name, avatar_url").in("id", userIds);
+      const profileMap: Record<string, any> = {};
+      (profiles || []).forEach((p: any) => { profileMap[p.id] = p; });
+      setDiscussions(data.map((d: any) => ({ ...d, profile: profileMap[d.user_id] || null })));
+    } else {
+      setDiscussions(data || []);
+    }
+    setDiscLoading(false);
+  };
+
+  const deleteDiscussion = async (id: string) => {
+    if (!confirm("Hapus komentar ini?")) return;
+    const sb = createClient();
+    await sb.from("lesson_discussions").delete().eq("id", id);
+    setDiscussions(prev => prev.filter(d => d.id !== id));
+  };
 
   // Live data from Supabase (with dummy fallback) — used in Overview/Progress/Bookmarks
   const [liveModules, setLiveModules] = useState<Module[]>([]);
@@ -747,6 +779,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => { if (activeTab === "konten" && role === "admin") loadKonten(); }, [activeTab, role]);
+  useEffect(() => { if (activeTab === "diskusi") loadDiscussions(); }, [activeTab]);
 
   const deleteArticle = async (id: number) => {
     if (!confirm("Hapus artikel ini?")) return;
@@ -824,6 +857,7 @@ export default function AdminPage() {
               {activeTab === "progress"  && <>📚 <span style={{ color: GOLD }}>Progress</span> Modul</>}
               {activeTab === "bookmarks" && <>🔖 <span style={{ color: GOLD }}>Bookmarks</span></>}
               {activeTab === "konten"    && <>✎ <span style={{ color: GOLD }}>Kelola</span> Konten</>}
+              {activeTab === "diskusi"   && <>💬 <span style={{ color: GOLD }}>Diskusi</span> & Komentar</>}
             </h1>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -1168,6 +1202,52 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Tab Diskusi ── */}
+            {activeTab === "diskusi" && (
+              <div style={{ padding: "0 4px" }}>
+                <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    placeholder="Cari komentar atau nama user..."
+                    value={discSearch}
+                    onChange={e => setDiscSearch(e.target.value)}
+                    style={{ flex: 1, minWidth: 200, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#f0f0f5", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                  />
+                  <button onClick={loadDiscussions} style={{ padding: "9px 16px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: `1px solid ${GOLD}30`, background: `${GOLD}10`, color: GOLD, cursor: "pointer", fontFamily: "inherit" }}>↻ Refresh</button>
+                </div>
+                {discLoading ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", opacity: 0.4, color: "#f0f0f5" }}>Memuat diskusi...</div>
+                ) : discussions.filter(d => { if (!discSearch) return true; const q = discSearch.toLowerCase(); return d.body?.toLowerCase().includes(q) || d.profile?.name?.toLowerCase().includes(q); }).length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", opacity: 0.3, color: "#f0f0f5" }}>Belum ada diskusi</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {discussions
+                      .filter(d => { if (!discSearch) return true; const q = discSearch.toLowerCase(); return d.body?.toLowerCase().includes(q) || d.profile?.name?.toLowerCase().includes(q); })
+                      .map((d: any) => (
+                        <div key={d.id} style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, background: `${GOLD}18`, border: `1px solid ${GOLD}25`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: GOLD }}>
+                            {(d.profile?.name || "?")?.[0]?.toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#f0f0f5" }}>{d.profile?.name || "Pengguna"}</span>
+                              {d.parent_id && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 5, background: "rgba(167,139,250,0.1)", color: "#a78bfa" }}>Reply</span>}
+                              <span style={{ fontSize: 11, opacity: 0.35, color: "#f0f0f5" }}>{new Date(d.created_at).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                              {d.lesson?.title && <span style={{ fontSize: 10, opacity: 0.4, color: "#f0f0f5" }}>· {d.lesson.title}</span>}
+                            </div>
+                            <p style={{ fontSize: 13, color: "#f0f0f5", opacity: 0.7, lineHeight: 1.6, margin: 0, wordBreak: "break-word" }}>{d.body}</p>
+                          </div>
+                          <button onClick={() => deleteDiscussion(d.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", flexShrink: 0, fontFamily: "inherit" }}>🗑 Hapus</button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                {!discLoading && discussions.length > 0 && (
+                  <div style={{ marginTop: 14, fontSize: 12, opacity: 0.35, color: "#f0f0f5", textAlign: "right" }}>Total {discussions.length} komentar</div>
                 )}
               </div>
             )}

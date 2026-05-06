@@ -174,7 +174,7 @@ export default function Navbar() {
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
           >
             <span style={{ fontSize: 15 }}>🔍</span>
-            {!isMobile && <span style={{ fontSize: 12, opacity: 0.5 }}>Ctrl K</span>}
+            {!isMobile && <span style={{ fontSize: 12, opacity: 0.5 }}>Search</span>}
           </button>
 
           {/* Live badge */}

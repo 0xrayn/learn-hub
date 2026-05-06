@@ -107,7 +107,7 @@ function PostItem({ post, accent, currentUserId, onDelete, onEdit, onReply, dept
   const isOwn = post.user_id === currentUserId;
 
   return (
-    <div style={{ display: "flex", gap: 10, ...(depth > 0 ? { marginLeft: "clamp(16px, 4vw, 36px)" } : {}) }}>
+    <div style={{ display: "flex", gap: 10, ...(depth > 0 ? { marginLeft: `clamp(16px, 4vw, ${Math.min(depth, 3) * 24}px)` } : {}) }}>
       <Avatar name={post.profile?.name} avatarUrl={post.profile?.avatar_url} size={28} />
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Header */}
@@ -132,11 +132,9 @@ function PostItem({ post, accent, currentUserId, onDelete, onEdit, onReply, dept
         {/* Actions */}
         {!editing && (
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {depth === 0 && (
-              <button onClick={() => setReplying(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>
-                {replying ? "Batal" : "💬 Balas"}
-              </button>
-            )}
+            <button onClick={() => setReplying(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>
+              {replying ? "Batal" : "💬 Balas"}
+            </button>
             {isOwn && (
               <>
                 <button onClick={() => setEditing(true)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>Edit</button>
@@ -172,71 +170,113 @@ function PostItem({ post, accent, currentUserId, onDelete, onEdit, onReply, dept
 }
 
 export default function DiscussionSection({ lessonId, accent }: DiscussionSectionProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<DiscussionPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const sb = createClient();
+    setError(null);
+    try {
+      const sb = createClient();
 
-    const { data, count } = await sb
-      .from("lesson_discussions")
-      .select("*, profile:profiles(name,avatar_url)", { count: "exact" })
-      .eq("lesson_id", lessonId)
-      .order("created_at", { ascending: true });
+      // Query 1: ambil diskusi tanpa join profiles
+      const { data, count, error: fetchError } = await sb
+        .from("lesson_discussions")
+        .select("*", { count: "exact" })
+        .eq("lesson_id", lessonId)
+        .order("created_at", { ascending: true });
 
-    if (data) {
+      if (fetchError) { setError(fetchError.message); setLoading(false); return; }
+      if (!data || data.length === 0) { setPosts([]); setTotal(0); setLoading(false); return; }
+
+      // Query 2: ambil profiles berdasarkan user_id yang ada
+      const userIds = [...new Set(data.map((d: any) => d.user_id))];
+      const { data: profiles } = await sb
+        .from("profiles")
+        .select("id, name, avatar_url")
+        .in("id", userIds);
+
+      const profileMap: Record<string, any> = {};
+      (profiles || []).forEach((p: any) => { profileMap[p.id] = p; });
+
       setTotal(count || data.length);
-      // Build tree: separate top-level and replies
-      const topLevel: DiscussionPost[] = [];
-      const replyMap: Record<string, DiscussionPost[]> = {};
 
+      // Build rekursif tree
+      const allPosts: Record<string, DiscussionPost> = {};
       data.forEach((d: any) => {
-        const post: DiscussionPost = {
+        allPosts[d.id] = {
           id: d.id, lesson_id: d.lesson_id, user_id: d.user_id,
           parent_id: d.parent_id, body: d.body, edited: d.edited,
           created_at: d.created_at, updated_at: d.updated_at,
-          profile: Array.isArray(d.profile) ? d.profile[0] : d.profile,
+          profile: profileMap[d.user_id] || null,
           replies: [],
         };
-        if (!d.parent_id) topLevel.push(post);
-        else { if (!replyMap[d.parent_id]) replyMap[d.parent_id] = []; replyMap[d.parent_id].push(post); }
       });
 
-      topLevel.forEach(p => { p.replies = replyMap[p.id] || []; });
+      const topLevel: DiscussionPost[] = [];
+      data.forEach((d: any) => {
+        if (!d.parent_id) {
+          topLevel.push(allPosts[d.id]);
+        } else if (allPosts[d.parent_id]) {
+          allPosts[d.parent_id].replies = [...(allPosts[d.parent_id].replies || []), allPosts[d.id]];
+        } else {
+          // Parent tidak ketemu (reply ke reply yang sudah dihapus) — tampilkan di top level
+          topLevel.push(allPosts[d.id]);
+        }
+      });
       setPosts(topLevel);
+    } catch (e: any) {
+      setError(e.message || "Gagal memuat diskusi");
     }
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [lessonId]);
 
+  // Auto-refresh setiap 10 detik
+  useEffect(() => {
+    const interval = setInterval(() => { load(); }, 10000);
+    return () => clearInterval(interval);
+  }, [lessonId]);
+
   const handlePost = async (body: string) => {
-    if (!user) return;
+    if (!user) { setError("Kamu harus login dulu untuk berkomentar."); return; }
     const sb = createClient();
-    await sb.from("lesson_discussions").insert({ lesson_id: lessonId, user_id: user.id, body });
+    const { error: insertError } = await sb
+      .from("lesson_discussions")
+      .insert({ lesson_id: lessonId, user_id: user.id, body });
+    if (insertError) { setError(`Gagal kirim: ${insertError.message}`); return; }
     await load();
   };
 
   const handleReply = async (parentId: string, body: string) => {
-    if (!user) return;
+    if (!user) { setError("Kamu harus login dulu."); return; }
     const sb = createClient();
-    await sb.from("lesson_discussions").insert({ lesson_id: lessonId, user_id: user.id, parent_id: parentId, body });
+    const { error: insertError } = await sb
+      .from("lesson_discussions")
+      .insert({ lesson_id: lessonId, user_id: user.id, parent_id: parentId, body });
+    if (insertError) { setError(`Gagal kirim: ${insertError.message}`); return; }
     await load();
   };
 
   const handleEdit = async (id: string, body: string) => {
     const sb = createClient();
-    await sb.from("lesson_discussions").update({ body, edited: true, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error: editError } = await sb
+      .from("lesson_discussions")
+      .update({ body, edited: true, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (editError) { setError(`Gagal edit: ${editError.message}`); return; }
     await load();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus komentar ini?")) return;
     const sb = createClient();
-    await sb.from("lesson_discussions").delete().eq("id", id);
+    const { error: delError } = await sb.from("lesson_discussions").delete().eq("id", id);
+    if (delError) { setError(`Gagal hapus: ${delError.message}`); return; }
     await load();
   };
 
@@ -251,9 +291,17 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
         </div>
       </div>
 
+      {/* Error banner */}
+        {error && (
+          <div style={{ margin: "0 20px 12px", padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "#f87171" }}>⚠️ {error}</span>
+            <button onClick={() => setError(null)} style={{ fontSize: 11, background: "none", border: "none", color: "#f87171", cursor: "pointer", opacity: 0.6 }}>✕</button>
+          </div>
+        )}
+
       <div style={{ padding: "18px 20px" }}>
         {/* Input area */}
-        {user ? (
+        {!authLoading && (user ? (
           <div style={{ display: "flex", gap: 10, marginBottom: 22 }}>
             <Avatar name={user.user_metadata?.name} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -268,7 +316,7 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
               <Link href="/register" style={{ padding: "7px 14px", borderRadius: 9, fontSize: 12, fontWeight: 700, background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 60%, #06b6d4))`, color: "#000", textDecoration: "none" }}>Daftar Gratis</Link>
             </div>
           </div>
-        )}
+        ))}
 
         {/* Posts */}
         {loading ? (
