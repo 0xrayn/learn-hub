@@ -21,12 +21,14 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// Inisialisasi sekali di luar component — cegah multiple instance / lock conflict
+const supabase = createClient();
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<Role>(null);
-  const supabase = createClient();
 
   const fetchRole = async (uid: string) => {
     const { data } = await supabase

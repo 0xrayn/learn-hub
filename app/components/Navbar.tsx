@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import GlobalSearch from "./GlobalSearch";
+import NotificationBell from "./NotificationBell";
 
 const themes = [
   { name: "dark",   label: "Dark",   icon: "🌑", desc: "Luxury Dark" },
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Harga BTC",  anchorHref: "#harga",     routeHref: "/#harga"     },
   { label: "Artikel",    anchorHref: "#artikel",   routeHref: "/artikel"    },
   { label: "Edukasi",    anchorHref: "#edukasi",   routeHref: "/edukasi"    },
+  { label: "Leaderboard", anchorHref: "/leaderboard", routeHref: "/leaderboard" },
   { label: "Konverter",  anchorHref: "#konverter", routeHref: "/#konverter" },
   { label: "FAQ",        anchorHref: "#faq",       routeHref: "/#faq"       },
 ];
@@ -85,8 +87,10 @@ export default function Navbar() {
 
   // Resolve href per item berdasarkan pathname
   const getHref = (item: typeof NAV_ITEMS[0]) => {
-    // Di homepage: SEMUA pakai anchor (#artikel, #edukasi, #harga, dll)
-    // Di halaman lain: pakai route (kecuali Artikel & Edukasi tetap ke page-nya)
+    // Item yang anchorHref-nya sudah berupa route (mulai dengan "/") → selalu pakai routeHref
+    if (item.anchorHref.startsWith("/")) return item.routeHref;
+    // Di homepage: pakai anchor (#artikel, #edukasi, #harga, dll)
+    // Di halaman lain: pakai route
     if (isHome) return item.anchorHref;
     return item.routeHref;
   };
@@ -127,7 +131,7 @@ export default function Navbar() {
         {/* Desktop nav links */}
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {NAV_ITEMS.map(item => {
+            {NAV_ITEMS.filter(item => item.label !== "Leaderboard" || !!user).map(item => {
               const href = getHref(item);
               const isActive = !isHome && (
                 (item.label === "Artikel" && pathname.startsWith("/artikel")) ||
@@ -193,6 +197,8 @@ export default function Navbar() {
           {!isMobile && !loading && (
             user ? (
               /* User logged in — avatar + dropdown */
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <NotificationBell accent={accent} />
               <div style={{ position: "relative" }} data-user-dropdown>
                 <button onClick={() => setUserDropOpen(!userDropOpen)} style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 6px",
@@ -261,6 +267,7 @@ export default function Navbar() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             ) : (
               /* Not logged in */
@@ -369,7 +376,7 @@ export default function Navbar() {
           borderBottom: menuOpen ? "1px solid rgba(255,255,255,0.06)" : "none",
         }}>
           <div style={{ padding: "8px 16px 16px" }}>
-            {NAV_ITEMS.map(item => (
+            {NAV_ITEMS.filter(item => item.label !== "Leaderboard" || !!user).map(item => (
               <Link key={item.label} href={getHref(item)} onClick={() => setMenuOpen(false)} style={{
                 display: "block", padding: "12px 14px", borderRadius: 10,
                 color: "var(--text-main,#e8eaf0)", opacity: 0.7, fontSize: 14, fontWeight: 500,

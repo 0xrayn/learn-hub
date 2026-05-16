@@ -1237,7 +1237,18 @@ export default function AdminPage() {
                               <span style={{ fontSize: 12, fontWeight: 700, color: "#f0f0f5" }}>{d.profile?.name || "Pengguna"}</span>
                               {d.parent_id && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 5, background: "rgba(167,139,250,0.1)", color: "#a78bfa" }}>Reply</span>}
                               <span style={{ fontSize: 11, opacity: 0.35, color: "#f0f0f5" }}>{new Date(d.created_at).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                              {d.lesson?.title && <span style={{ fontSize: 10, opacity: 0.4, color: "#f0f0f5" }}>· {d.lesson.title}</span>}
+                              {d.lesson?.title && d.lesson?.module_id && (
+                                <a
+                                  href={`/edukasi/${d.lesson.module_id}/lesson/${d.lesson_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ fontSize: 10, padding: "1px 8px", borderRadius: 5, background: `${GOLD}12`, color: GOLD, textDecoration: "none", border: `1px solid ${GOLD}25`, fontWeight: 600, transition: "opacity .15s" }}
+                                  onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
+                                  onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+                                >
+                                  🔗 {d.lesson.title}
+                                </a>
+                              )}
                             </div>
                             <p style={{ fontSize: 13, color: "#f0f0f5", opacity: 0.7, lineHeight: 1.6, margin: 0, wordBreak: "break-word" }}>{d.body}</p>
                           </div>

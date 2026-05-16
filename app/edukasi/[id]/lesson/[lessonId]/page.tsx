@@ -94,6 +94,7 @@ interface QuizSectionProps {
   questions: QuizQuestion[]; accent: string;
   onQuizDone: (score: number, correct: number, total: number) => void;
   alreadyPassed: boolean; savedScore: number | null;
+  user: import("@supabase/supabase-js").User | null;
 }
 function shuffleQuestions(questions: QuizQuestion[]): ShuffledQuestion[] {
   return questions.map(q => {
@@ -107,7 +108,7 @@ function shuffleQuestions(questions: QuizQuestion[]): ShuffledQuestion[] {
   });
 }
 
-function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore }: QuizSectionProps) {
+function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore, user }: QuizSectionProps) {
   const [shuffled, setShuffled] = useState<ShuffledQuestion[]>(() => shuffleQuestions(questions));
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -116,6 +117,19 @@ function QuizSection({ questions, accent, onQuizDone, alreadyPassed, savedScore 
   const [showResult, setShowResult] = useState(false);
   const [started, setStarted] = useState(false);
   if (!questions || questions.length === 0) return null;
+
+  // 🔒 Gate: harus login dulu sebelum bisa ikut quiz
+  if (!user) return (
+    <div style={{ borderRadius: 18, border: "1px solid rgba(255,180,0,0.18)", background: "rgba(255,180,0,0.04)", marginBottom: 24, padding: 28, textAlign: "center" }}>
+      <div style={{ fontSize: 36, marginBottom: 10 }}>🔒</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-main,#e8eaf0)", marginBottom: 6 }}>Login untuk Ikut Quiz</div>
+      <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.5, lineHeight: 1.7, marginBottom: 20 }}>Kamu perlu login terlebih dahulu untuk mengerjakan quiz dan menyimpan progress belajarmu.</p>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+        <Link href="/login" style={{ padding: "10px 22px", borderRadius: 11, fontSize: 13, fontWeight: 800, background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 60%, #06b6d4))`, color: "#000", textDecoration: "none" }}>Masuk</Link>
+        <Link href="/register" style={{ padding: "10px 22px", borderRadius: 11, fontSize: 13, fontWeight: 700, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-main,#e8eaf0)", textDecoration: "none" }}>Daftar Gratis</Link>
+      </div>
+    </div>
+  );
   const q = shuffled[current];
   const isCorrect = selected !== null && selected === q.correctIdx;
   const isAnswered = answered[current];
@@ -242,6 +256,14 @@ export default function LessonPage() {
   const [savedScore, setSavedScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [moduleJustCompleted, setModuleJustCompleted] = useState(false);
+  const [userRole, setUserRole] = useState<string>("user");
+
+  // Fetch role — admin/superadmin bypass sequential lock
+  useEffect(() => {
+    if (!user) return;
+    createClient().from("profiles").select("role").eq("id", user.id).single()
+      .then(({ data }) => { if (data?.role) setUserRole(data.role); });
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -282,7 +304,8 @@ export default function LessonPage() {
   const nextLesson = lessonIdx < allLessons.length - 1 ? allLessons[lessonIdx + 1] : null;
   const isFree = lesson?.is_free || lessonIdx < 2;
   const isLocked = !isFree && !user && !authLoading;
-  const isSeqLocked = !!(user && lessonIdx > 0 && !completedLessons.has(lessonIdx - 1) && !isFree);
+  const isAdmin = ["admin", "superadmin"].includes(userRole);
+  const isSeqLocked = !!(user && !isAdmin && lessonIdx > 0 && !completedLessons.has(lessonIdx - 1) && !isFree);
   const currentDone = completedLessons.has(lessonIdx);
   const hasQuiz = quizQuestions.length > 0;
   const canMarkComplete = !hasQuiz || quizPassed;
@@ -375,7 +398,7 @@ export default function LessonPage() {
             {lesson.video_url && <div style={{ marginBottom: 30 }}><VideoPlayer url={lesson.video_url} type={lesson.video_type} /></div>}
             {lesson.content && <div style={{ padding: "26px 28px", borderRadius: 18, background: "rgba(255,255,255,0.018)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}><MarkdownContent content={lesson.content} accent={accent} /></div>}
             {!lesson.video_url && !lesson.content && <div style={{ padding: "48px 20px", borderRadius: 18, border: "1px dashed rgba(255,255,255,0.08)", textAlign: "center", marginBottom: 24 }}><div style={{ fontSize: 36, marginBottom: 10, opacity: 0.3 }}>📝</div><p style={{ color: "var(--text-main,#e8eaf0)", opacity: 0.28, fontSize: 13 }}>Konten belum tersedia</p></div>}
-            <QuizSection questions={quizQuestions} accent={accent} onQuizDone={handleQuizDone} alreadyPassed={quizPassed} savedScore={savedScore} />
+            <QuizSection questions={quizQuestions} accent={accent} onQuizDone={handleQuizDone} alreadyPassed={quizPassed} savedScore={savedScore} user={user} />
             {/* Discussion */}
             <DiscussionSection lessonId={Number(lessonId)} accent={accent} />
             {/* Mark complete */}
@@ -415,7 +438,7 @@ export default function LessonPage() {
                 {allLessons.map((l, idx) => {
                   const isActive = l.id === Number(lessonId);
                   const isDone = completedLessons.has(idx);
-                  const seqLock = !!(user && idx > 0 && !completedLessons.has(idx - 1) && !(l.is_free || idx < 2));
+                  const seqLock = !!(user && !isAdmin && idx > 0 && !completedLessons.has(idx - 1) && !(l.is_free || idx < 2));
                   return (
                     <Link key={l.id} href={seqLock ? "#" : `/edukasi/${id}/lesson/${l.id}`} onClick={e => { if (seqLock) e.preventDefault(); }} className="sll" style={{ textDecoration: "none" }}>
                       <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, background: isActive ? `${accent}0d` : "transparent", borderLeft: isActive ? `2px solid ${accent}` : "2px solid transparent", transition: "all .15s", opacity: seqLock ? 0.4 : 1 }}>

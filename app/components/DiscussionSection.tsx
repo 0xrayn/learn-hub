@@ -106,65 +106,72 @@ function PostItem({ post, accent, currentUserId, onDelete, onEdit, onReply, dept
   const [replying, setReplying] = useState(false);
   const isOwn = post.user_id === currentUserId;
 
+  // Indent visual cuma 1 level — depth > 1 tetap pakai style yang sama dengan depth 1
+  const indentStyle = depth > 0
+    ? { marginLeft: 44, paddingLeft: 14, borderLeft: "2px solid rgba(255,255,255,0.07)" }
+    : {};
+
   return (
-    <div style={{ display: "flex", gap: 10, ...(depth > 0 ? { marginLeft: `clamp(16px, 4vw, ${Math.min(depth, 3) * 24}px)` } : {}) }}>
-      <Avatar name={post.profile?.name} avatarUrl={post.profile?.avatar_url} size={28} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-main,#e8eaf0)" }}>{post.profile?.name || "Pengguna"}</span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{timeAgo(post.created_at)}</span>
-          {post.edited && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>· diedit</span>}
-        </div>
-
-        {/* Body */}
-        {editing ? (
-          <CommentBox
-            initialValue={post.body}
-            accent={accent}
-            onSubmit={async (body) => { await onEdit(post.id, body); setEditing(false); }}
-            onCancel={() => setEditing(false)}
-          />
-        ) : (
-          <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.7, margin: "0 0 6px", wordBreak: "break-word" }}>{post.body}</p>
-        )}
-
-        {/* Actions */}
-        {!editing && (
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={() => setReplying(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>
-              {replying ? "Batal" : "💬 Balas"}
-            </button>
-            {isOwn && (
-              <>
-                <button onClick={() => setEditing(true)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>Edit</button>
-                <button onClick={() => onDelete(post.id)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.4)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>Hapus</button>
-              </>
-            )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div style={{ display: "flex", gap: 10, ...indentStyle }}>
+        <Avatar name={post.profile?.name} avatarUrl={post.profile?.avatar_url} size={28} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-main,#e8eaf0)" }}>{post.profile?.name || "Pengguna"}</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>{timeAgo(post.created_at)}</span>
+            {post.edited && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>· diedit</span>}
           </div>
-        )}
 
-        {/* Reply box */}
-        {replying && (
-          <div style={{ marginTop: 10 }}>
+          {/* Body */}
+          {editing ? (
             <CommentBox
+              initialValue={post.body}
               accent={accent}
-              placeholder="Tulis balasan..."
-              onSubmit={async (body) => { await onReply(post.id, body); setReplying(false); }}
-              onCancel={() => setReplying(false)}
+              onSubmit={async (body) => { await onEdit(post.id, body); setEditing(false); }}
+              onCancel={() => setEditing(false)}
             />
-          </div>
-        )}
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.7, margin: "0 0 6px", wordBreak: "break-word" }}>{post.body}</p>
+          )}
 
-        {/* Replies */}
-        {post.replies && post.replies.length > 0 && (
-          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-            {post.replies.map(reply => (
-              <PostItem key={reply.id} post={reply} accent={accent} currentUserId={currentUserId} onDelete={onDelete} onEdit={onEdit} onReply={onReply} depth={depth + 1} />
-            ))}
-          </div>
-        )}
+          {/* Actions */}
+          {!editing && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button onClick={() => setReplying(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>
+                {replying ? "Batal" : "💬 Balas"}
+              </button>
+              {isOwn && (
+                <>
+                  <button onClick={() => setEditing(true)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>Edit</button>
+                  <button onClick={() => onDelete(post.id)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.4)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontFamily: "inherit" }}>Hapus</button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Reply box */}
+          {replying && (
+            <div style={{ marginTop: 10 }}>
+              <CommentBox
+                accent={accent}
+                placeholder={`Balas ke ${post.profile?.name || "Pengguna"}...`}
+                onSubmit={async (body) => { await onReply(post.id, body); setReplying(false); }}
+                onCancel={() => setReplying(false)}
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Replies — depth di-cap 1, indent tidak bertambah walau nested dalam */}
+      {post.replies && post.replies.length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+          {post.replies.map(reply => (
+            <PostItem key={reply.id} post={reply} accent={accent} currentUserId={currentUserId} onDelete={onDelete} onEdit={onEdit} onReply={onReply} depth={1} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -204,10 +211,13 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
 
       setTotal(count || data.length);
 
-      // Build rekursif tree
-      const allPosts: Record<string, DiscussionPost> = {};
+      // Build 2-level flat structure: top-level + semua reply langsung ke parent top-level
+      // Build flat 2-level structure:
+      // - top-level: komentar tanpa parent
+      // - semua reply (termasuk reply ke reply) → dikumpulkan di bawah komentar top-level
+      const postMap: Record<string, DiscussionPost> = {};
       data.forEach((d: any) => {
-        allPosts[d.id] = {
+        postMap[d.id] = {
           id: d.id, lesson_id: d.lesson_id, user_id: d.user_id,
           parent_id: d.parent_id, body: d.body, edited: d.edited,
           created_at: d.created_at, updated_at: d.updated_at,
@@ -216,17 +226,48 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
         };
       });
 
-      const topLevel: DiscussionPost[] = [];
-      data.forEach((d: any) => {
-        if (!d.parent_id) {
-          topLevel.push(allPosts[d.id]);
-        } else if (allPosts[d.parent_id]) {
-          allPosts[d.parent_id].replies = [...(allPosts[d.parent_id].replies || []), allPosts[d.id]];
-        } else {
-          // Parent tidak ketemu (reply ke reply yang sudah dihapus) — tampilkan di top level
-          topLevel.push(allPosts[d.id]);
+      // Temukan top-level root dari sebuah post (iteratif, aman dari infinite loop)
+      const getRoot = (id: string): string => {
+        let current = id;
+        const visited = new Set<string>();
+        while (true) {
+          const p = postMap[current];
+          if (!p || !p.parent_id || visited.has(current)) return current;
+          visited.add(current);
+          current = p.parent_id;
         }
+      };
+
+      const topLevel: DiscussionPost[] = [];
+      const repliesMap: Record<string, DiscussionPost[]> = {};
+
+      // Pass 1: kumpulkan top-level
+      data.forEach((d: any) => {
+        if (!d.parent_id) topLevel.push(postMap[d.id]);
       });
+
+      // Pass 2: semua reply → masuk ke replies root-nya
+      data.forEach((d: any) => {
+        if (!d.parent_id) return;
+        const rootId = getRoot(d.id);
+        // Kalau root adalah dirinya sendiri tapi dia punya parent_id
+        // → parent sudah dihapus, tampilkan sebagai top-level orphan
+        if (rootId === d.id || !postMap[rootId]) {
+          postMap[d.id].parent_id = null; // perlakukan sebagai top-level
+          topLevel.push(postMap[d.id]);
+          return;
+        }
+        if (!repliesMap[rootId]) repliesMap[rootId] = [];
+        repliesMap[rootId].push(postMap[d.id]);
+      });
+
+      // Assign replies ke masing-masing top-level (sorted by created_at)
+      topLevel.forEach(p => {
+        p.replies = (repliesMap[p.id] || []).sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      });
+
       setPosts(topLevel);
     } catch (e: any) {
       setError(e.message || "Gagal memuat diskusi");
