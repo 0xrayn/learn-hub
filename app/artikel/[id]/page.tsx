@@ -66,58 +66,142 @@ export default function ArtikelDetail() {
     setBookmarkLoading(false);
   };
 
+  // Parse inline formatting: **bold**, *italic*, `code`, [text](url)
+  const parseInline = (text: string, catColor: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+    let last = 0, m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      const token = m[0];
+      if (token.startsWith("**")) parts.push(<strong key={m.index} style={{ color: "var(--text-main,#e8eaf0)", fontWeight: 700 }}>{token.slice(2, -2)}</strong>);
+      else if (token.startsWith("*")) parts.push(<em key={m.index} style={{ fontStyle: "italic", opacity: 0.85 }}>{token.slice(1, -1)}</em>);
+      else if (token.startsWith("`")) parts.push(<code key={m.index} style={{ fontFamily: "monospace", fontSize: "0.88em", padding: "1px 6px", borderRadius: 5, background: "rgba(255,255,255,0.08)", color: catColor }}>{token.slice(1, -1)}</code>);
+      else { const [label, href] = token.slice(1, -1).split("]("); parts.push(<a key={m.index} href={href} target="_blank" rel="noopener noreferrer" style={{ color: catColor, textDecoration: "underline", textUnderlineOffset: 3 }}>{label}</a>); }
+      last = m.index + token.length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
+
   const renderContent = (text: string, catColor: string) => {
-    return text.split("\n\n").map((block, i) => {
-      if (block.startsWith("## ")) {
-        return (
-          <h2 key={i} style={{ fontSize: "clamp(1.1rem,2vw,1.35rem)", fontWeight: 800, color: "var(--text-main,#e8eaf0)", margin: "32px 0 12px", paddingLeft: 14, borderLeft: `3px solid ${catColor}` }}>
-            {block.replace("## ", "")}
-          </h2>
+    const lines = text.split("\n");
+    const blocks: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Skip empty lines
+      if (!line.trim()) { i++; continue; }
+
+      // H2
+      if (line.startsWith("## ")) {
+        blocks.push(
+          <div key={i} style={{ margin: "44px 0 16px" }}>
+            <div style={{ width: 32, height: 3, borderRadius: 99, background: catColor, marginBottom: 10, opacity: 0.7 }} />
+            <h2 style={{ fontSize: "clamp(1.15rem,2.2vw,1.4rem)", fontWeight: 900, color: "var(--text-main,#e8eaf0)", margin: 0, lineHeight: 1.3, letterSpacing: "-0.02em" }}>
+              {parseInline(line.slice(3), catColor)}
+            </h2>
+          </div>
         );
+        i++; continue;
       }
-      if (block.startsWith("### ")) {
-        return (
-          <h3 key={i} style={{ fontSize: "clamp(1rem,1.8vw,1.15rem)", fontWeight: 700, color: "var(--text-main,#e8eaf0)", margin: "24px 0 10px" }}>
-            {block.replace("### ", "")}
+
+      // H3
+      if (line.startsWith("### ")) {
+        blocks.push(
+          <h3 key={i} style={{ fontSize: "clamp(1rem,1.8vw,1.15rem)", fontWeight: 800, color: "var(--text-main,#e8eaf0)", margin: "32px 0 10px", letterSpacing: "-0.01em" }}>
+            {parseInline(line.slice(4), catColor)}
           </h3>
         );
+        i++; continue;
       }
-      if (block.startsWith("- ")) {
-        const items = block.split("\n").filter(l => l.startsWith("- "));
-        return (
-          <ul key={i} style={{ margin: "12px 0 16px", padding: 0, listStyle: "none" }}>
+
+      // Blockquote
+      if (line.startsWith("> ")) {
+        const qLines: string[] = [];
+        while (i < lines.length && lines[i].startsWith("> ")) { qLines.push(lines[i].slice(2)); i++; }
+        blocks.push(
+          <blockquote key={i} style={{ margin: "24px 0", padding: "16px 20px", borderLeft: `4px solid ${catColor}`, borderRadius: "0 12px 12px 0", background: `color-mix(in srgb, ${catColor} 6%, rgba(255,255,255,0.02))` }}>
+            {qLines.map((q, j) => <p key={j} style={{ margin: j < qLines.length - 1 ? "0 0 8px" : 0, fontSize: 15, fontStyle: "italic", color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.7 }}>{parseInline(q, catColor)}</p>)}
+          </blockquote>
+        );
+        continue;
+      }
+
+      // Code block
+      if (line.startsWith("```")) {
+        const lang = line.slice(3).trim();
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
+        i++;
+        blocks.push(
+          <div key={i} style={{ margin: "24px 0", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+            {lang && <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.04)", fontSize: 11, fontWeight: 700, color: catColor, fontFamily: "monospace", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{lang}</div>}
+            <pre style={{ margin: 0, padding: "16px", background: "rgba(0,0,0,0.3)", overflowX: "auto", fontSize: 13, lineHeight: 1.7, color: "rgba(255,255,255,0.8)", fontFamily: "monospace" }}>{codeLines.join("\n")}</pre>
+          </div>
+        );
+        continue;
+      }
+
+      // Unordered list
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        const items: string[] = [];
+        while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* "))) { items.push(lines[i].slice(2)); i++; }
+        blocks.push(
+          <ul key={i} style={{ margin: "16px 0 20px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
             {items.map((item, j) => (
-              <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 15, color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.7, marginBottom: 6 }}>
-                <span style={{ color: catColor, flexShrink: 0, marginTop: 2 }}>▸</span>
-                <span>{item.replace("- ", "")}</span>
+              <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: catColor, flexShrink: 0, marginTop: 9 }} />
+                <span style={{ fontSize: 15, color: "var(--text-main,#e8eaf0)", opacity: 0.78, lineHeight: 1.75 }}>{parseInline(item, catColor)}</span>
               </li>
             ))}
           </ul>
         );
+        continue;
       }
-      if (block.match(/^\d+\. /)) {
-        const items = block.split("\n").filter(l => l.match(/^\d+\. /));
-        return (
-          <ol key={i} style={{ margin: "12px 0 16px", padding: 0, listStyle: "none" }}>
+
+      // Ordered list
+      if (/^\d+\. /.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, "")); i++; }
+        blocks.push(
+          <ol key={i} style={{ margin: "16px 0 20px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
             {items.map((item, j) => (
-              <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 15, color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.7, marginBottom: 6 }}>
-                <span style={{ color: catColor, flexShrink: 0, fontWeight: 700, marginTop: 2 }}>{j + 1}.</span>
-                <span>{item.replace(/^\d+\. /, "")}</span>
+              <li key={j} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ minWidth: 26, height: 26, borderRadius: 8, background: `color-mix(in srgb, ${catColor} 15%, transparent)`, border: `1px solid ${catColor}40`, color: catColor, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>{j + 1}</span>
+                <span style={{ fontSize: 15, color: "var(--text-main,#e8eaf0)", opacity: 0.78, lineHeight: 1.75, paddingTop: 2 }}>{parseInline(item, catColor)}</span>
               </li>
             ))}
           </ol>
         );
+        continue;
       }
-      const withBold = block.split(/(\*\*[^*]+\*\*)/).map((part, j) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return <strong key={j} style={{ color: "var(--text-main,#e8eaf0)", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
-        }
-        return part;
-      });
-      return (
-        <p key={i} style={{ fontSize: 15, color: "var(--text-main,#e8eaf0)", opacity: 0.72, lineHeight: 1.85, margin: "0 0 16px" }}>{withBold}</p>
-      );
-    });
+
+      // Horizontal rule
+      if (line.startsWith("---") || line.startsWith("***")) {
+        blocks.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.07)", margin: "36px 0" }} />);
+        i++; continue;
+      }
+
+      // Paragraph — collect consecutive non-special lines
+      const paraLines: string[] = [];
+      while (i < lines.length && lines[i].trim() && !lines[i].startsWith("#") && !lines[i].startsWith("> ") && !lines[i].startsWith("```") && !lines[i].startsWith("- ") && !lines[i].startsWith("* ") && !/^\d+\. /.test(lines[i]) && !lines[i].startsWith("---")) {
+        paraLines.push(lines[i]);
+        i++;
+      }
+      if (paraLines.length) {
+        blocks.push(
+          <p key={i} style={{ fontSize: 16, color: "var(--text-main,#e8eaf0)", opacity: 0.75, lineHeight: 1.9, margin: "0 0 20px", letterSpacing: "0.005em" }}>
+            {parseInline(paraLines.join(" "), catColor)}
+          </p>
+        );
+      }
+    }
+
+    return blocks;
   };
 
   // Loading state
@@ -215,7 +299,13 @@ export default function ArtikelDetail() {
           </div>
 
           {/* Body */}
-          <div style={{ marginBottom: 48 }}>{renderContent(article.content, article.catColor)}</div>
+          <div style={{ marginBottom: 56, maxWidth: 680 }}>
+            {/* Lead/excerpt */}
+            <p style={{ fontSize: 18, fontWeight: 500, color: "var(--text-main,#e8eaf0)", opacity: 0.6, lineHeight: 1.75, marginBottom: 36, paddingBottom: 28, borderBottom: `2px solid ${article.catColor}20`, fontStyle: "italic" }}>
+              {article.excerpt}
+            </p>
+            {renderContent(article.content, article.catColor)}
+          </div>
 
           {/* Tags */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 48, paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.07)" }}>

@@ -180,11 +180,15 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
   const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<DiscussionPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (currentPage = 1, append = false) => {
+    if (currentPage === 1) setLoading(true); else setLoadingMore(true);
     setError(null);
     try {
       const sb = createClient();
@@ -196,8 +200,8 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
         .eq("lesson_id", lessonId)
         .order("created_at", { ascending: true });
 
-      if (fetchError) { setError(fetchError.message); setLoading(false); return; }
-      if (!data || data.length === 0) { setPosts([]); setTotal(0); setLoading(false); return; }
+      if (fetchError) { setError(fetchError.message); setLoading(false); setLoadingMore(false); return; }
+      if (!data || data.length === 0) { setPosts([]); setTotal(0); setLoading(false); setLoadingMore(false); return; }
 
       // Query 2: ambil profiles berdasarkan user_id yang ada
       const userIds = [...new Set(data.map((d: any) => d.user_id))];
@@ -268,39 +272,73 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
         );
       });
 
-      setPosts(topLevel);
+      // Paginate top-level posts
+      const paginated = topLevel.slice(0, currentPage * PAGE_SIZE);
+      setTotal(count || data.length);
+      if (append) setPosts(prev => {
+        // Merge — keep existing, add new ones
+        const existingIds = new Set(prev.map(p => p.id));
+        const newOnes = paginated.filter(p => !existingIds.has(p.id));
+        return [...prev, ...newOnes];
+      });
+      else setPosts(paginated);
     } catch (e: any) {
       setError(e.message || "Gagal memuat diskusi");
     }
     setLoading(false);
+    setLoadingMore(false);
   };
 
-  useEffect(() => { load(); }, [lessonId]);
+  useEffect(() => { load(1, false); }, [lessonId]);
 
-  // Auto-refresh setiap 10 detik
+  // Infinite scroll
   useEffect(() => {
-    const interval = setInterval(() => { load(); }, 10000);
-    return () => clearInterval(interval);
-  }, [lessonId]);
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && posts.length < total && !loadingMore) {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        load(nextPage, true);
+      }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [posts.length, total, loadingMore, page]);
+
+  const lastPostRef = useRef<number>(0);
+  const COOLDOWN_MS = 30000; // 30 detik
 
   const handlePost = async (body: string) => {
     if (!user) { setError("Kamu harus login dulu untuk berkomentar."); return; }
+    const now = Date.now();
+    if (now - lastPostRef.current < COOLDOWN_MS) {
+      const sisa = Math.ceil((COOLDOWN_MS - (now - lastPostRef.current)) / 1000);
+      setError(`Tunggu ${sisa} detik sebelum komentar lagi.`); return;
+    }
     const sb = createClient();
     const { error: insertError } = await sb
       .from("lesson_discussions")
       .insert({ lesson_id: lessonId, user_id: user.id, body });
     if (insertError) { setError(`Gagal kirim: ${insertError.message}`); return; }
-    await load();
+    lastPostRef.current = Date.now();
+    setPage(1); await load(1, false);
   };
 
   const handleReply = async (parentId: string, body: string) => {
     if (!user) { setError("Kamu harus login dulu."); return; }
+    const now = Date.now();
+    if (now - lastPostRef.current < COOLDOWN_MS) {
+      const sisa = Math.ceil((COOLDOWN_MS - (now - lastPostRef.current)) / 1000);
+      setError(`Tunggu ${sisa} detik sebelum komentar lagi.`); return;
+    }
     const sb = createClient();
     const { error: insertError } = await sb
       .from("lesson_discussions")
       .insert({ lesson_id: lessonId, user_id: user.id, parent_id: parentId, body });
     if (insertError) { setError(`Gagal kirim: ${insertError.message}`); return; }
-    await load();
+    lastPostRef.current = Date.now();
+    setPage(1); await load(1, false);
   };
 
   const handleEdit = async (id: string, body: string) => {
@@ -310,7 +348,7 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
       .update({ body, edited: true, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (editError) { setError(`Gagal edit: ${editError.message}`); return; }
-    await load();
+    setPage(1); await load(1, false);
   };
 
   const handleDelete = async (id: string) => {
@@ -318,7 +356,7 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
     const sb = createClient();
     const { error: delError } = await sb.from("lesson_discussions").delete().eq("id", id);
     if (delError) { setError(`Gagal hapus: ${delError.message}`); return; }
-    await load();
+    setPage(1); await load(1, false);
   };
 
   return (
@@ -375,6 +413,12 @@ export default function DiscussionSection({ lessonId, accent }: DiscussionSectio
             {posts.map(post => (
               <PostItem key={post.id} post={post} accent={accent} currentUserId={user?.id} onDelete={handleDelete} onEdit={handleEdit} onReply={handleReply} />
             ))}
+            {/* Infinite scroll trigger */}
+            {posts.length < total && (
+              <div ref={loaderRef} style={{ textAlign: "center", padding: "16px 0" }}>
+                {loadingMore && <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${accent}20`, borderTop: `2px solid ${accent}`, margin: "0 auto", animation: "spin 0.7s linear infinite" }} />}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -40,7 +40,7 @@ export default function AkunPage() {
   const [deleteMsg, setDeleteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   // Stats
-  const [stats, setStats] = useState({ lessons: 0, bookmarks: 0 });
+  const [stats, setStats] = useState({ lessons: 0, bookmarks: 0, streak: 0, longestStreak: 0 });
   const [modules, setModules] = useState<Module[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, number>>({});
 
@@ -65,7 +65,13 @@ export default function AkunPage() {
     Promise.all([
       sb.from("module_progress").select("id", { count: "exact" }).eq("user_id", user.id).eq("completed", true),
       sb.from("artikel_bookmarks").select("id", { count: "exact" }).eq("user_id", user.id),
-    ]).then(([p, b]) => setStats({ lessons: p.count || 0, bookmarks: b.count || 0 }));
+      sb.from("learning_streaks").select("current_streak,longest_streak").eq("user_id", user.id).single(),
+    ]).then(([p, b, s]) => setStats({
+      lessons: p.count || 0,
+      bookmarks: b.count || 0,
+      streak: s.data?.current_streak || 0,
+      longestStreak: s.data?.longest_streak || 0,
+    }));
 
     // Load modules + progress for learning tab
     fetchModules().then(setModules);
@@ -233,6 +239,7 @@ export default function AkunPage() {
                 {[
                   { icon: "✅", val: stats.lessons, label: "Lesson" },
                   { icon: "🔖", val: stats.bookmarks, label: "Bookmark" },
+                  { icon: "🔥", val: stats.streak, label: "Streak" },
                 ].map((s) => (
                   <div key={s.label} style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 16, marginBottom: 2 }}>{s.icon}</div>

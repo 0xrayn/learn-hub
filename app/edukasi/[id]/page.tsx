@@ -404,11 +404,18 @@ body {
     width: 297mm !important; height: 210mm !important;
     padding: 0 !important; margin: 0 !important;
     background: white !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+  .cert-scaler {
+    width: 297mm !important; height: 210mm !important;
+    display: block !important;
+    overflow: hidden !important;
   }
   .cert {
     width: 297mm !important; height: 210mm !important;
-    transform: none !important; margin: 0 !important;
+    transform: none !important;
+    margin: 0 !important;
     box-shadow: none !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -768,6 +775,27 @@ export default function EdukasiDetail() {
                   <Link key={i} href={`/edukasi/${modul.id}/lesson/${lesson.id}`} style={{ textDecoration: "none" }}>
                     {cardInner}
                   </Link>
+                ) : !canAccess && lesson.id ? (
+                  // Locked lesson — tampilkan preview blur + CTA
+                  <div key={i}>
+                    {cardInner}
+                    {i === 2 && ( // Hanya tampilkan preview di lesson pertama yang locked
+                      <div style={{ marginTop: 6, borderRadius: 12, overflow: "hidden", position: "relative", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        {/* Blurred preview content */}
+                        <div style={{ padding: "14px 18px", filter: "blur(4px)", userSelect: "none", pointerEvents: "none", opacity: 0.5 }}>
+                          <div style={{ fontSize: 13, color: "var(--text-main,#e8eaf0)", lineHeight: 1.7 }}>
+                            {lesson.content ? lesson.content.slice(0, 120) + "..." : "Konten video dan materi lengkap tersedia setelah login. Daftar gratis untuk mulai belajar..."}
+                          </div>
+                        </div>
+                        {/* Overlay CTA */}
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(to bottom, transparent 0%, rgba(15,17,26,0.85) 60%)" }}>
+                          <Link href="/register" style={{ padding: "8px 18px", borderRadius: 10, fontSize: 12, fontWeight: 800, background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, color: "#000", textDecoration: "none" }}>
+                            🔓 Daftar Gratis untuk Akses
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (<div key={i}>{cardInner}</div>);
               })}
             </div>
@@ -789,6 +817,44 @@ export default function EdukasiDetail() {
               ) : (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
                   <button onClick={() => openCertificateTab(modul, (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Pengguna")} style={{ padding: "13px 28px", borderRadius: 13, fontSize: 14, fontWeight: 800, cursor: "pointer", background: `linear-gradient(135deg, ${modul.accent}, color-mix(in srgb, ${modul.accent} 70%, #06b6d4))`, border: "none", color: "#000" }}>🎓 Ambil Sertifikat</button>
+
+                  {/* Share ke sosmed */}
+                  {(() => {
+                    const userName = (user as any)?.user_metadata?.full_name || (user as any)?.email?.split("@")[0] || "Saya";
+                    const shareText = `Saya baru saja menyelesaikan modul "${modul.title}" di LearnHub! 🎓🚀 #LearnHub #Bitcoin #Blockchain`;
+                    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+                    return (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: "var(--text-main,#e8eaf0)", opacity: 0.35, fontWeight: 600 }}>Bagikan:</span>
+                        {/* WhatsApp */}
+                        <a href={`https://wa.me/?text=${encodeURIComponent(shareText + "\n" + shareUrl)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, textDecoration: "none", transition: "all .15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(37,211,102,0.2)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(37,211,102,0.1)")}
+                          title="Bagikan ke WhatsApp">💬</a>
+                        {/* Twitter/X */}
+                        <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(29,161,242,0.1)", border: "1px solid rgba(29,161,242,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, textDecoration: "none", color: "#1da1f2", transition: "all .15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(29,161,242,0.2)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(29,161,242,0.1)")}
+                          title="Bagikan ke X/Twitter">𝕏</a>
+                        {/* LinkedIn */}
+                        <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&summary=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(0,119,181,0.1)", border: "1px solid rgba(0,119,181,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, textDecoration: "none", color: "#0077b5", transition: "all .15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,119,181,0.2)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,119,181,0.1)")}
+                          title="Bagikan ke LinkedIn">in</a>
+                        {/* Copy link */}
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link disalin! 🔗"); }}
+                          style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                          title="Salin link">🔗</button>
+                      </div>
+                    );
+                  })()}
+
                   <button onClick={async () => {
                     setSaving(true);
                     const supabase = createClient();

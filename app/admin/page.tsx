@@ -6,6 +6,16 @@ import { useAuth } from "../context/AuthContext";
 import { createClient } from "../lib/supabase";
 import { fetchModules, fetchArticles, type Module, type Article } from "../lib/supabase-data";
 
+// ── Helper: kirim notifikasi ke semua user (role=user) ─────────────────────
+async function sendNotifToAll(type: string, title: string, body: string, link: string) {
+  const sb = createClient();
+  const { data: users } = await sb.from("profiles").select("id").eq("role", "user");
+  if (!users || users.length === 0) return;
+  const notifs = users.map((u: any) => ({ user_id: u.id, type, title, body, link, is_read: false }));
+  await sb.from("notifications").insert(notifs);
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 interface UserProfile { id: string; name: string | null; role: string; created_at: string; }
 interface ProgressRow { user_id: string; module_id: number; lesson_idx: number; completed: boolean; }
 interface BookmarkRow { user_id: string; artikel_id: number; created_at: string; }
@@ -175,7 +185,12 @@ function ArticleModal({ article, onClose, onSaved }: { article: DbArticle | null
       : await sb.from("articles").update(payload).eq("id", article!.id);
     setSaving(false);
     if (error) setErr(error.message);
-    else { onSaved(); onClose(); }
+    else {
+      if (isNew && payload.published) {
+        await sendNotifToAll("lesson_new", `📰 Artikel Baru: ${form.title}`, `Ada artikel baru "${form.title}". Yuk baca sekarang!`, `/artikel`);
+      }
+      onSaved(); onClose();
+    }
   };
 
   const inp: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f5", boxSizing: "border-box" };
@@ -434,6 +449,8 @@ function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose:
       const lessonsPayload = validLessons.map((l, idx) => ({ module_id: moduleId, title: l.title, duration: l.duration || "5 mnt", sort_order: idx, video_url: l.video_url || null, video_type: l.video_type || "youtube", content: l.content || null, is_free: l.is_free || false }));
       const { data: insertedLessons } = await sb.from("module_lessons").insert(lessonsPayload).select("id");
       savedLessonIds = (insertedLessons || []).map((l: any) => l.id);
+      // Notif: modul baru
+      await sendNotifToAll("lesson_new", `📚 Modul Baru: ${form.title}`, `Ada modul baru "${form.title}" dengan ${validLessons.length} lesson. Yuk mulai belajar!`, `/edukasi/${moduleId}`);
     } else {
       const { error } = await sb.from("modules").update(payload).eq("id", mod!.id);
       if (error) { setSaving(false); setErr(error.message); return; }
@@ -442,6 +459,8 @@ function ModuleModal({ mod, onClose, onSaved }: { mod: DbModule | null; onClose:
       if (lessonsPayload.length > 0) {
         const { data: insertedLessons } = await sb.from("module_lessons").insert(lessonsPayload).select("id");
         savedLessonIds = (insertedLessons || []).map((l: any) => l.id);
+        // Notif: modul diupdate
+        await sendNotifToAll("module_update", `🔄 Modul Diperbarui: ${form.title}`, `Modul "${form.title}" baru saja diperbarui. Cek lesson terbarunya!`, `/edukasi/${mod!.id}`);
       }
     }
 

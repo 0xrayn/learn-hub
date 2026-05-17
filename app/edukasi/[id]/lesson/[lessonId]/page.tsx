@@ -321,7 +321,21 @@ export default function LessonPage() {
     const sb = createClient();
     const { data: ex } = await sb.from("quiz_results").select("attempts").eq("user_id", user.id).eq("lesson_id", lessonId).single();
     await sb.from("quiz_results").upsert({ user_id: user.id, lesson_id: Number(lessonId), score, total_q: total, correct_q: correct, passed, attempts: (ex?.attempts || 0) + 1, updated_at: new Date().toISOString() }, { onConflict: "user_id,lesson_id" });
-    if (passed) { setQuizPassed(true); setSavedScore(score); }
+    if (passed) {
+      setQuizPassed(true);
+      setSavedScore(score);
+      // Notif: quiz passed — hanya kirim sekali (cek attempts sebelumnya = 0)
+      if (!ex || ex.attempts === 0) {
+        await sb.from("notifications").insert({
+          user_id: user.id,
+          type: "badge_earned",
+          title: `🏆 Quiz Selesai: ${lesson?.title || "Lesson"}`,
+          body: `Kamu lulus quiz "${lesson?.title}" dengan skor ${score}%. Keren!`,
+          link: `/edukasi/${id}/lesson/${lessonId}`,
+          is_read: false,
+        });
+      }
+    }
   };
 
   const toggleComplete = async () => {
@@ -330,6 +344,10 @@ export default function LessonPage() {
     const sb = createClient();
     const newDone = !currentDone;
     await sb.from("module_progress").upsert({ user_id: user.id, module_id: Number(id), lesson_idx: lessonIdx, completed: newDone, updated_at: new Date().toISOString() }, { onConflict: "user_id,module_id,lesson_idx" });
+    // Update streak saat tandai selesai (bukan saat untandai)
+    if (newDone) {
+      await sb.rpc("update_learning_streak", { p_user_id: user.id });
+    }
     setCompletedLessons(prev => {
       const next = new Set(prev);
       if (newDone) next.add(lessonIdx); else next.delete(lessonIdx);

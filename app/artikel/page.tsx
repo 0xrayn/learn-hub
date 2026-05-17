@@ -1,30 +1,49 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { fetchArticles, type Article } from "../lib/supabase-data";
 
 const CATS = ["Semua", "Pemula", "Teknologi", "Investasi", "Keamanan", "Sejarah", "Mining"];
+const PER_PAGE = 9;
 
 export default function ArtikelPage() {
   const [cat, setCat] = useState("Semua");
   const [search, setSearch] = useState("");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchArticles().then((data) => { setArticles(data); setLoading(false); });
   }, []);
 
+  // Reset page saat filter/search berubah
+  useEffect(() => { setPage(1); }, [cat, search]);
+
   const filtered = articles.filter((a) => {
     const matchCat = cat === "Semua" || a.category === cat;
-    const matchSearch =
-      !search ||
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.excerpt.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase()) || a.excerpt.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  const visible = filtered.slice(0, page * PER_PAGE);
+  const hasMore = visible.length < filtered.length;
+
+  // Infinite scroll via IntersectionObserver
+  const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0].isIntersecting && hasMore) setPage(p => p + 1);
+  }, [hasMore]);
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   return (
     <>
@@ -81,7 +100,7 @@ export default function ArtikelPage() {
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
-              {filtered.map((a) => (
+              {visible.map((a) => (
                 <Link key={a.id} href={`/artikel/${a.id}`} style={{ textDecoration: "none" }}>
                   <div className="grad-border" style={{ overflow: "hidden", transition: "transform .2s", cursor: "pointer" }}
                     onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-3px)")}
@@ -104,6 +123,20 @@ export default function ArtikelPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {/* Infinite scroll trigger */}
+          {hasMore && (
+            <div ref={loaderRef} style={{ textAlign: "center", padding: "32px 0" }}>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(6,182,212,0.15)", borderTop: "2px solid #06b6d4", margin: "0 auto", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          )}
+
+          {!hasMore && filtered.length > PER_PAGE && (
+            <div style={{ textAlign: "center", padding: "24px 0", fontSize: 13, color: "var(--text-main,#e8eaf0)", opacity: 0.3 }}>
+              Semua {filtered.length} artikel sudah ditampilkan
             </div>
           )}
         </div>
