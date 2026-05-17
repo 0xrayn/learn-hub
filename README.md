@@ -2,37 +2,36 @@
 
 A modern Bitcoin and Blockchain e-learning platform built with Next.js and Supabase. Features a complete learning management system with quizzes, certificates, discussion threads, leaderboard, notifications, and role-based access control.
 
-![LearnHub Banner](screenshots/banner.png)
 
----
+
 
 ## Screenshots
 
 ![Home](screenshots/home.png)
-**Landing Page** — Bitcoin price ticker, featured modules, and latest articles on the homepage.
+**Landing Page** - Bitcoin price ticker, featured modules, and latest articles on the homepage.
 
 ![Modules](screenshots/modules.png)
-**Module List** — Browse all available learning modules with progress indicators and difficulty levels.
+**Module List** - Browse all available learning modules with progress indicators and difficulty levels.
 
 ![Lesson](screenshots/lesson.png)
-**Lesson Page** — Read or watch video lessons with a sidebar showing all lessons and your progress. Sequential lock ensures you complete lessons in order.
+**Lesson Page** - Read or watch video lessons with a sidebar showing all lessons and your progress. Sequential lock ensures you complete lessons in order.
 
 ![Quiz](screenshots/quiz.png)
-**Quiz** — Each lesson ends with a quiz. Questions are shuffled, scored, and you can retry as many times as you want. Results are saved to your profile.
+**Quiz** - Each lesson ends with a quiz. Questions are shuffled, scored, and you can retry as many times as you want. Results are saved to your profile.
 
 ![Certificate](screenshots/certificate.png)
-**Certificate** — Complete all lessons in a module to unlock a print-ready PDF certificate with a unique certificate number.
+**Certificate** - Complete all lessons in a module to unlock a print-ready PDF certificate with a unique certificate number.
 
 ![Leaderboard](screenshots/leaderboard.png)
-**Leaderboard** — Rankings based on total lessons completed. Only visible to logged-in users. Admin and superadmin accounts are excluded.
+**Leaderboard** - Rankings based on total lessons completed. Only visible to logged-in users. Admin and superadmin accounts are excluded.
 
 ![Article](screenshots/article.png)
-**Article Reader** — Clean reading experience with rich markdown rendering, bookmark support, estimated read time, and related articles.
+**Article Reader** - Clean reading experience with rich markdown rendering, bookmark support, estimated read time, and related articles.
 
 ![Dashboard](screenshots/dashboard.png)
-**Admin Dashboard** — Manage modules, lessons, quizzes, articles, discussions, and users all in one place.
+**Admin Dashboard** - Manage modules, lessons, quizzes, articles, discussions, and users all in one place.
 
----
+
 
 ## Features
 
@@ -74,7 +73,7 @@ A modern Bitcoin and Blockchain e-learning platform built with Next.js and Supab
 - User management (superadmin only)
 - Send notifications to all users on new content
 
----
+
 
 ## Tech Stack
 
@@ -87,7 +86,7 @@ A modern Bitcoin and Blockchain e-learning platform built with Next.js and Supab
 | Auth | Supabase Auth + Google OAuth |
 | Deployment | Vercel (recommended) |
 
----
+
 
 ## Getting Started
 
@@ -147,7 +146,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
----
+
 
 ## Google OAuth Setup
 
@@ -163,7 +162,7 @@ Open [http://localhost:3000](http://localhost:3000).
 7. In Supabase dashboard: **Authentication > Sign In / Sign Up > Google**
 8. Paste Client ID and Client Secret, then save
 
----
+
 
 ## Project Structure
 
@@ -197,7 +196,7 @@ app/
     supabase-data.ts     # Data fetching helpers
 ```
 
----
+
 
 ## Roles
 
@@ -209,7 +208,7 @@ app/
 
 Set a user's role by updating the `role` column in the `profiles` table via Supabase dashboard or the superadmin panel.
 
----
+
 
 ## Database Schema
 
@@ -235,7 +234,7 @@ Views:
 |---|---|
 | `leaderboard` | Ranked users by lessons completed (excludes admin roles) |
 
----
+
 
 ## Deployment
 
@@ -252,8 +251,8 @@ Views:
 
 No additional config needed. Make sure your Supabase project's **Site URL** is set to your production URL under **Authentication > URL Configuration**.
 
----
+
 
 ## License
 
-MIT 0xrayn
+MIT
